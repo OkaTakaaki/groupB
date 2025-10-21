@@ -1,0 +1,10 @@
+{
+  "python.analysis.extraPaths": [
+    "./"
+  ]
+  ,
+  "cSpell.words": [
+    "gcaccount",
+    "tcaccount"
+  ]
+}
