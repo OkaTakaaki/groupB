@@ -1,3 +1,7 @@
-<h1>
-    This is render by <span style="color: red">home.html</span>
-</h1>
+{% extends 'app/base.html' %}
+{% block title %}
+ホーム
+{% endblock %}
+{% block content %}
+<p>この部分は子テンプレートで上書きされました。</p>
+{% endblock %}

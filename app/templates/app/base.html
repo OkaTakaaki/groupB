@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+   <meta charset="UTF-8">
+   <title>{% block title %}デフォルトタイトル{% endblock %}</title>
+</head>
+<body>
+   <header>
+       <h1>共通ヘッダー</h1>
+   </header>
+   <main>
+       {% block content %}
+       <!-- 子テンプレートで上書きされる部分 -->
+       {% endblock %}
+   </main>
+   <footer>
+       <p>共通フッター</p>
+   </footer>
+</body>
+</html>
