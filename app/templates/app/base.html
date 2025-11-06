@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}学習管理システム{% endblock %}</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #5C82B8;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+        main {
+            min-height: 70vh;
+            padding: 20px;
+            background-color: white;
+        }
+        footer {
+            background-color: #5C82B8;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+        footer a {
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            flex: 1;
+        }
+        footer a:hover {
+            background-color: #496a94;
+        }
+        .icon {
+            font-size: 24px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    {% block header %}学習管理システム{% endblock %}
+</header>
+
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+<footer>
+    <a href="{% url 'home' %}">
+        <span class="icon">🏠</span>
+        <div>ホーム</div>
+    </a>
+    <a href="{% url 'home' %}">
+        <span class="icon">👤</span>
+        <div>生徒</div>
+    </a>
+    <a href="{% url 'home' %}">
+        <span class="icon">✉️</span>
+        <div>メール</div>
+    </a>
+    <a href="{% url 'home' %}">
+        <span class="icon">📅</span>
+        <div>カレンダー</div>
+    </a>
+    <a href="{% url 'home' %}">
+        <span class="icon">⚙️</span>
+        <div>設定</div>
+    </a>
+</footer>
+
+</body>
+</html>
