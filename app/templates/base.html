@@ -48,7 +48,7 @@
 <body>
 
 <header>
-    {% block header %}学習管理システム{% endblock %}
+    {% block header %}<h2>学習管理システム</h2>{% endblock %}
 </header>
 
 <main>
@@ -60,19 +60,19 @@
         <span class="icon">🏠</span>
         <div>ホーム</div>
     </a>
-    <a href="{% url 'home' %}">
+    <a href="{% url 'student_information' %}">
         <span class="icon">👤</span>
-        <div>生徒</div>
+        <div>生徒情報</div>
     </a>
-    <a href="{% url 'home' %}">
+    <a href="{% url 'mail_list' %}">
         <span class="icon">✉️</span>
         <div>メール</div>
     </a>
-    <a href="{% url 'home' %}">
+    <a href="{% url 'calendar' %}">
         <span class="icon">📅</span>
         <div>カレンダー</div>
     </a>
-    <a href="{% url 'home' %}">
+    <a href="{% url 'setting' %}">
         <span class="icon">⚙️</span>
         <div>設定</div>
     </a>

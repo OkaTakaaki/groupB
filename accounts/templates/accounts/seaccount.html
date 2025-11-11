@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}講師アカウント作成{% endblock %}
+{% block title %}生徒情報編集{% endblock %}
 
 {% block content %}
 <style>
@@ -57,7 +57,7 @@ button:hover {
 </style>
 
 <div class="form-container">
-    <h2>講師アカウント作成</h2>
+    <h2>生徒情報編集</h2>
 
     {% if messages %}
         {% for message in messages %}
@@ -81,7 +81,11 @@ button:hover {
     <form method="post">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">登録する</button>
+        <button type="submit">更新する</button>
     </form>
+
+    <div style="text-align:center; margin-top:15px;">
+        <a href="{% url 'scaccount' %}">← 生徒登録ページへ戻る</a>
+    </div>
 </div>
 {% endblock %}

@@ -1,22 +1,29 @@
 from django.db import models
 
+#保護者
+class Parent(models.Model):
+    login_id = models.EmailField(
+        max_length=100, unique=True, verbose_name="ログインID(メールアドレス)"
+    )
+    password_hash = models.CharField(
+        max_length=255, verbose_name="パスワード（ハッシュ）"
+    )
+    name = models.CharField(
+        max_length=100, verbose_name="親氏名"
+    )
+    phone = models.CharField(
+        max_length=20, blank=True, null=True, verbose_name="電話番号"
+    )
+
 #生徒
 class Student(models.Model):
+    parent = models.ForeignKey(Parent, on_delete=models.CASCADE)
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
         ('その他', 'その他'),
     ]
 
-    login_id = models.EmailField(
-        max_length=100, unique=True, verbose_name="ログインID"
-    )
-    password_hash = models.CharField(
-        max_length=255, verbose_name="パスワード（ハッシュ）"
-    )
-    parent_name = models.CharField(
-        max_length=100, verbose_name="保護者氏名"
-    )
     child_name = models.CharField(
         max_length=100, verbose_name="子ども氏名"
     )
@@ -28,9 +35,6 @@ class Student(models.Model):
     )
     gender = models.CharField(
         max_length=10, choices=GENDER_CHOICES, verbose_name="性別"
-    )
-    phone = models.CharField(
-        max_length=20, blank=True, null=True, verbose_name="電話番号"
     )
     school_name = models.CharField(
         max_length=100, blank=True, null=True, verbose_name="学校名"
@@ -51,7 +55,7 @@ class Student(models.Model):
         verbose_name_plural = "生徒一覧"
 
     def __str__(self):
-        return f"{self.child_name} ({self.parent_name})"
+        return f"{self.child_name} parent: {self.parent.name}"
 
 #講師
 class Teacher(models.Model):
