@@ -27,6 +27,7 @@ def chat_view(request, user_id=None):
         users = User.objects.exclude(id=current_user.id)
 
     selected_user = None
+    
     messages = []
 
     # チャット相手が指定されている場合
