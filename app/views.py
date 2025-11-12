@@ -54,20 +54,11 @@ def mail_list(request, user_type=None, user_id=None):
     # ログインユーザー情報取得
     current_type = request.session['user_type']
     current_id = request.session['user_id']
-    print(f"あああああああああああああああ{current_type}あああああああああああああああ")
-
-    print(f"current_id---------------------{current_id}------------------------")
 
     if current_type == 'student'or current_type == 'parent':
-        print(f"=====================student============================")
-        print(f"====================={current_id}============================")
         current_user = get_object_or_404(Student, id=current_id)
-        print(f"====================={current_user}============================")
     else:
-        print(f"=====================teacher============================")
-        print(f"====================={current_id}============================")
         current_user = get_object_or_404(Teacher, id=current_id)
-        print(f"====================={current_user}============================")
 
     # チャット相手
     selected_user = None
@@ -78,14 +69,10 @@ def mail_list(request, user_type=None, user_id=None):
             current_user = get_object_or_404(Student, id=current_id)
             if user_id:
                 selected_user = get_object_or_404(Teacher, id=user_id)
-                print(f"=====================student============================")
-                print(f"====================={selected_user}============================")
         elif current_type == 'teacher':
             current_user = get_object_or_404(Teacher, id=current_id)
             if user_id:
                 selected_user = get_object_or_404(Student, id=user_id)
-                print(f"=======================teacher==========================")
-                print(f"====================={selected_user}============================")
         else:
             # parent などログイン不可ユーザーはリダイレクト
             return redirect('home')
@@ -102,7 +89,6 @@ def mail_list(request, user_type=None, user_id=None):
                 Q(student_sender=selected_user, teacher_receiver=current_user)
             ).order_by('timestamp')
 
-    print(f"あああああああああああああああ{current_type}あああああああああああああああ")
     # メッセージ送信処理
     if request.method == 'POST' and selected_user:
         form = MessageForm(request.POST)

@@ -14,13 +14,10 @@ def login(request):
         # 保護者ログイン
         parent = Parent.objects.filter(login_id=login_id).first()
         if parent:
-            print(f"====================={password}============================")
-            print(f"====================={parent.password_hash}============================")
             if parent.password_hash == password or check_password(password, parent.password_hash):
                 request.session['user_type'] = 'parent'
                 request.session['user_id'] = parent.id
                 messages.success(request, f"{parent.name}さん、ログインしました。")
-                print(f"=====================login{parent}さん============================")
                 return redirect('home')
 
         # 講師ログイン
@@ -30,7 +27,6 @@ def login(request):
                 request.session['user_type'] = 'teacher'
                 request.session['user_id'] = teacher.id
                 messages.success(request, f"{teacher.name}先生、ログインしました。")
-                print(f"=====================login{teacher}先生============================")
                 return redirect('home')
 
         messages.error(request, "メールアドレスまたはパスワードが正しくありません。")
