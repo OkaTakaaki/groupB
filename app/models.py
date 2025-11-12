@@ -20,16 +20,17 @@ class Parent(models.Model):
 
 #生徒
 class Student(models.Model):
-    user_type = models.CharField(
-        max_length=10, default='student', verbose_name="ユーザータイプ"
-    )
-    parent = models.ForeignKey(Parent, on_delete=models.CASCADE)
+    parent = models.ForeignKey(Parent, null=True, blank=True, on_delete=models.SET_NULL)
+
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
         ('その他', 'その他'),
     ]
 
+    user_type = models.CharField(
+        max_length=10, default='student', verbose_name="ユーザータイプ"
+    )
     child_name = models.CharField(
         max_length=100, verbose_name="子ども氏名"
     )
