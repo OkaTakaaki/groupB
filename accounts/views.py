@@ -14,10 +14,13 @@ def login(request):
         # 保護者ログイン
         parent = Parent.objects.filter(login_id=login_id).first()
         if parent:
+            print(f"====================={password}============================")
+            print(f"====================={parent.password_hash}============================")
             if parent.password_hash == password or check_password(password, parent.password_hash):
                 request.session['user_type'] = 'parent'
                 request.session['user_id'] = parent.id
                 messages.success(request, f"{parent.name}さん、ログインしました。")
+                print(f"=====================login{parent}さん============================")
                 return redirect('home')
 
         # 講師ログイン
@@ -27,6 +30,7 @@ def login(request):
                 request.session['user_type'] = 'teacher'
                 request.session['user_id'] = teacher.id
                 messages.success(request, f"{teacher.name}先生、ログインしました。")
+                print(f"=====================login{teacher}先生============================")
                 return redirect('home')
 
         messages.error(request, "メールアドレスまたはパスワードが正しくありません。")
@@ -54,7 +58,7 @@ class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            'child_name', 'child_name_kana',
+            'child_name', 'child_name_kana', 'user_type',
             'birth_date', 'gender', 'school_name', 'address'
         ]
         widgets = {
@@ -65,24 +69,19 @@ class StudentForm(forms.ModelForm):
 
 #student-create-account
 def scaccount(request):
-    """生徒アカウント作成ページ"""
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
     if request.method == 'POST':
         form = StudentForm(request.POST)
         if form.is_valid():
             try:
-                # ① 保護者アカウントを作成または取得
+                # 保護者を作成または取得（パスワードをハッシュ化して保存）
                 parent, created = Parent.objects.get_or_create(
                     login_id=form.cleaned_data['parent_login_id'],
                     defaults={
-                        'password_hash': form.cleaned_data['parent_password'],  # 仮で平文を使用中（あとでハッシュ化可）
+                        'password_hash': make_password(form.cleaned_data['parent_password']),
                         'name': form.cleaned_data['parent_name'],
                         'phone': form.cleaned_data.get('parent_phone', ''),
                     }
                 )
-
-                # ② 生徒を作成して保護者に紐付け
                 student = form.save(commit=False)
                 student.parent = parent
                 student.save()
@@ -97,8 +96,6 @@ def scaccount(request):
 
         else:
             messages.error(request, "入力内容に誤りがあります。")
-            print(form.errors)
-
     else:
         form = StudentForm()
 
@@ -109,7 +106,7 @@ class TeacherForm(forms.ModelForm):
     class Meta:
         model = Teacher
         fields = [
-            'login_id', 'name', 'name_kana', 'birth_date',
+            'login_id', 'name','name_kana', 'password_hash', 'birth_date',
             'gender', 'phone', 'permission_level'
         ]
         widgets = {
@@ -122,13 +119,12 @@ class TeacherForm(forms.ModelForm):
         }
 
 def tcaccount(request):
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
     if request.method == 'POST':
         form = TeacherForm(request.POST)
         if form.is_valid():
             teacher = form.save(commit=False)
-            teacher.password_hash = form.cleaned_data['login_id']  # 仮の値
+            # 入力されたパスワードをハッシュ化
+            teacher.password_hash = make_password(form.cleaned_data['password_hash'])
             teacher.save()
             messages.success(request, '講師アカウントを作成しました。')
             return redirect('tcaccount')

@@ -5,6 +5,9 @@ class Parent(models.Model):
     login_id = models.EmailField(
         max_length=100, unique=True, verbose_name="ログインID(メールアドレス)"
     )
+    user_type = models.CharField(
+        max_length=10, default='parent', verbose_name="ユーザータイプ"
+    )
     password_hash = models.CharField(
         max_length=255, verbose_name="パスワード（ハッシュ）"
     )
@@ -17,6 +20,9 @@ class Parent(models.Model):
 
 #生徒
 class Student(models.Model):
+    user_type = models.CharField(
+        max_length=10, default='student', verbose_name="ユーザータイプ"
+    )
     parent = models.ForeignKey(Parent, on_delete=models.CASCADE)
     GENDER_CHOICES = [
         ('男', '男'),
@@ -59,6 +65,9 @@ class Student(models.Model):
 
 #講師
 class Teacher(models.Model):
+    user_type = models.CharField(
+        max_length=10, default='teacher', verbose_name="ユーザータイプ" 
+    )
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
@@ -154,3 +163,28 @@ class Schedule(models.Model):
 
     def __str__(self):
         return f"{self.date} {self.start_time}-{self.end_time} / {self.teacher} -> {self.student}"
+
+class Message(models.Model):
+    # 送信者
+    student_sender = models.ForeignKey(
+        Student, related_name='sent_messages', on_delete=models.CASCADE, blank=True, null=True
+    )
+    teacher_sender = models.ForeignKey(
+        Teacher, related_name='sent_messages', on_delete=models.CASCADE, blank=True, null=True
+    )
+
+    # 受信者
+    student_receiver = models.ForeignKey(
+        Student, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
+    )
+    teacher_receiver = models.ForeignKey(
+        Teacher, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
+    )
+
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        sender = self.student_sender or self.teacher_sender
+        receiver = self.student_receiver or self.teacher_receiver
+        return f"{sender} → {receiver}: {self.content[:20]}"

@@ -1,6 +1,11 @@
 from django.contrib import admin
-from .models import Student, Teacher, Schedule
+from .models import Parent, Student, Teacher, Schedule
 
+class ParentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'login_id', 'phone', 'created_at')
+    search_fields = ('name', 'login_id')
+    ordering = ('-created_at',)
+    list_per_page = 20
 
 # =========================
 # 生徒モデル
@@ -10,9 +15,13 @@ class StudentAdmin(admin.ModelAdmin):
     list_display = (
         'id',
         'child_name',
-        'parent_name',  # ← メソッドで定義する
+        'parent_name',
+        'login_id',
         'birth_date',
         'gender',
+        'school_name',
+        'address',
+        'created_at'
     )
     # parent_name をメソッドとして定義
     def parent_name(self, obj):
