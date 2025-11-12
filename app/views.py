@@ -25,9 +25,25 @@ def calendar(request):
 
 #設定
 def setting(request):
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
-    return render(request, 'setting.html')
+    if 'user_id' not in request.session:
+        return redirect('login')
+
+    user_type = request.session.get('user_type')  # 'student', 'parent', 'teacher', 'admin'など
+    user_id = request.session.get('user_id')
+
+    # 教師モデルなどからparent情報を取得
+    teacher_level = None
+    if user_type == 'teacher':
+        teacher = Teacher.objects.get(id=user_id)
+        teacher_level = teacher.permission_level
+
+    context = {
+        'user_type': user_type,
+        'user_id': user_id,
+        'teacher_level': teacher_level,
+    }
+    return render(request, 'setting.html', context)
+
 
 #チャット
 
@@ -108,11 +124,6 @@ def mail_list(request, user_type=None, user_id=None):
         form = MessageForm()
 
     # ユーザー一覧（チャット可能な相手）
-    print(f"current_type: {current_type!r}")  # !r でクオート付きの表示
-    if current_type == "parent":
-        print(f"<<<<<<<<<<<<<<parent>>>>>>>>>>>>>>")
-    else:
-        print(f"<<<<<<<<<<<<<<NO>>>>>>>>>>>>>>")
 
     query = request.GET.get('q', '')
     if current_type == 'student' or current_type == 'parent':

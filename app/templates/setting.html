@@ -3,26 +3,19 @@
 
 {% block content %}
 <style>
-/* ====== 設定ページ用スタイル ====== */
 body {
     background-color: #f5f5f5;
     font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
 }
-
-/* コンテナ */
 .settings-container {
-    max-width: 450px; /* 少し横幅アップ */
+    max-width: 450px;
     margin: 50px auto;
 }
-
-/* メニューリスト */
 .settings-list {
     display: flex;
     flex-direction: column;
-    gap: 18px; /* 項目間の余白を広げる */
+    gap: 18px;
 }
-
-/* 各項目ボタン */
 .settings-item {
     display: flex;
     align-items: center;
@@ -30,61 +23,93 @@ body {
     background: #ffffff;
     border: 2px solid #5a82d1;
     border-radius: 40px;
-    padding: 16px 22px; /* ボタンを全体的に大きく */
-    font-size: 1.1em; /* テキストサイズアップ */
+    padding: 16px 22px;
+    font-size: 1.1em;
     text-decoration: none;
     color: #333;
     transition: all 0.2s ease;
 }
-
 .settings-item:hover {
     background: #e8f0ff;
     transform: translateY(-2px);
 }
-
-/* アイコン */
 .settings-item .icon {
-    font-size: 1.5em; /* アイコンを大きく */
+    font-size: 1.5em;
 }
-
-/* ログアウト専用スタイル */
 .logout {
     border-color: #ff7070;
     color: #ff4040;
 }
-
 .logout:hover {
     background: #ffe5e5;
 }
 </style>
 
+
 <div class="settings-container">
+  <div class="settings-list">
 
-    <div class="settings-list">
-        <a href="{% url 'teacher_select' %}" class="settings-item">
-            <span class="icon">👤</span>
-            <span>講師情報の編集</span>
-        </a>
+    {# 👩‍🎓 生徒または保護者ログイン時 #}
+    {% if user_type == 'student' or user_type == 'parent' %}
+      <a href="{% url 'seaccount' user_id %}" class="settings-item">
+          <span class="icon">👤</span>
+          <span>アカウント編集</span>
+      </a>
+      <a href="{% url 'logout' %}" class="settings-item logout">
+          <span class="icon">🚪</span>
+          <span>ログアウト</span>
+      </a>
 
-        <a href="{% url 'student_select' %}" class="settings-item">
-            <span class="icon">👥</span>
-            <span>生徒情報の編集</span>
-        </a>
+    {# 👨‍🏫 一般講師（parentが存在） #}
+    {% elif user_type == 'teacher' and teacher_level == '一般講師' %}
+      <a href="{% url 'teaccount' user_id %}" class="settings-item">
+          <span class="icon">👤</span>
+          <span>アカウント編集</span>
+      </a>
+      <a href="{% url 'logout' %}" class="settings-item logout">
+          <span class="icon">🚪</span>
+          <span>ログアウト</span>
+      </a>
 
-        <a href="{% url 'tcaccount' %}" class="settings-item">
-            <span class="icon">👤➕</span>
-            <span>講師アカウントの作成</span>
-        </a>
+    {# 👨‍💼 主任講師（parentがNone） #}
+    {% elif user_type == 'teacher' and teacher_level == '主任講師' %}
+      <a href="{% url 'teacher_select' %}" class="settings-item">
+          <span class="icon">👨‍🏫</span>
+          <span>講師情報の編集</span>
+      </a>
+      <a href="{% url 'student_select' %}" class="settings-item">
+          <span class="icon">👥</span>
+          <span>生徒情報の編集</span>
+      </a>
+      <a href="{% url 'tcaccount' %}" class="settings-item">
+          <span class="icon">👨‍🏫➕</span>
+          <span>講師アカウントの作成</span>
+      </a>
+      <a href="{% url 'scaccount' %}" class="settings-item">
+          <span class="icon">👥➕</span>
+          <span>生徒アカウントの作成</span>
+      </a>
+      <a href="{% url 'logout' %}" class="settings-item logout">
+          <span class="icon">🚪</span>
+          <span>ログアウト</span>
+      </a>
 
-        <a href="{% url 'scaccount' %}" class="settings-item">
-            <span class="icon">👥➕</span>
-            <span>生徒アカウントの作成</span>
-        </a>
+    {# 🧑‍💼 管理者ログイン時 #}
+    {% elif user_type == 'teacher' and teacher_level == '管理者' %}
+      <a href="{% url 'tcaccount' %}" class="settings-item">
+          <span class="icon">👨‍🏫➕</span>
+          <span>講師アカウントの作成</span>
+      </a>
+      <a href="{% url 'scaccount' %}" class="settings-item">
+          <span class="icon">👥➕</span>
+          <span>生徒アカウントの作成</span>
+      </a>
+      <a href="{% url 'logout' %}" class="settings-item logout">
+          <span class="icon">🚪</span>
+          <span>ログアウト</span>
+      </a>
 
-        <a href="{% url 'logout' %}" class="settings-item logout">
-            <span class="icon">🚪</span>
-            <span>ログアウト</span>
-        </a>
-    </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}
