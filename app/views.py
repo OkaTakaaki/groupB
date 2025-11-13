@@ -132,3 +132,7 @@ def mail_list(request, user_type=None, user_id=None):
     }
 
     return render(request, 'mail_list.html', context)
+
+def smenu_view(request):
+    template = loader.get_template("app/smenu.html")
+    return HttpResponse(template.render({}, request))
