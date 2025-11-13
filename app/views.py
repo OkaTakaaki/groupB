@@ -3,8 +3,6 @@ from django.http import HttpResponse
 from django.template import loader
 
 
-def home(request):
-    template = loader.get_template("app/home.html")
+def smenu_view(request):
+    template = loader.get_template("app/smenu.html")
     return HttpResponse(template.render({}, request))
-
-# Create your views here.
