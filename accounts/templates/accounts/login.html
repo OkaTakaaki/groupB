@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン</title>
+    <style>
+    .form-container {
+        max-width: 400px;
+        margin: 40px auto;
+        background: #fff;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    }
+    .form-container h2 {
+        text-align: center;
+        color: #5a82d1;
+        margin-bottom: 20px;
+    }
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    label {
+        font-weight: bold;
+    }
+    input {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 1em;
+    }
+    button {
+        background-color: #5a82d1;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    button:hover {
+        background-color: #3e66b3;
+    }
+    .message {
+        text-align: center;
+        color: red;
+        font-weight: bold;
+    }
+    </style>
+</head>
+
+<body>
+    <div class="form-container">
+        <h2>ログイン</h2>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <p class="message">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <label for="login_id">ログインID（メールアドレス）</label>
+            <input type="email" name="login_id" required>
+
+            <label for="password">パスワード</label>
+            <input type="password" name="password" required>
+
+            <button type="submit">ログイン</button>
+        </form>
+    </div>
+</body>
+</html>

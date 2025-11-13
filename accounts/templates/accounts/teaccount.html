@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}講師情報編集{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>講師情報編集</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="message">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    {% if form.errors %}
+        <ul class="errorlist">
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <li>{{ field.label }}: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">更新する</button>
+    </form>
+
+    <div style="text-align:center; margin-top:15px;">
+        <a href="{% url 'teacher_select' %}">← 講師一覧へ戻る</a>
+    </div>
+</div>
+
+<style>
+.form-container {
+    max-width: 500px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+h2 {
+    text-align: center;
+    color: #5a82d1;
+}
+button {
+    background-color: #5a82d1;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: 0.2s;
+}
+button:hover {
+    background-color: #3e66b3;
+}
+.message {
+    text-align: center;
+    color: green;
+    font-weight: bold;
+}
+.errorlist {
+    color: red;
+    list-style: none;
+    padding-left: 0;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+
+{% block title %}
+メール一覧
+{% endblock %}
+
+{% block content %}
+<style>
+    .mail-container {
+        display: flex;
+        height: calc(100vh - 160px); /* header + footerを引く */
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    /* サイドバー（ユーザー一覧） */
+    .sidebar {
+        width: 30%;
+        background-color: #AFC4D5;
+        padding: 10px;
+        overflow-y: auto;
+        border-right: 2px solid #5C82B8;
+    }
+
+    .search-box {
+        width: 100%;
+        padding: 8px;
+        border-radius: 6px;
+        border: none;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+
+    .user-item {
+        display: flex;
+        align-items: center;
+        background-color: #D9E3EC;
+        padding: 8px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        transition: background-color 0.2s;
+    }
+
+    .user-item:hover {
+        background-color: #c9d7e2;
+    }
+
+    .user-icon {
+        font-size: 22px;
+        margin-right: 10px;
+    }
+
+    .user-name {
+        font-size: 15px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    /* チャット部分 */
+    .chat-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background-color: white;
+    }
+
+    .chat-header {
+        background-color: #5C82B8;
+        color: white;
+        padding: 12px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .chat-messages {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        background-color: #f8f8f8;
+    }
+
+    .message {
+        margin: 8px 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        max-width: 70%;
+        display: inline-block;
+        word-break: break-word;
+    }
+
+    .sent {
+        background-color: #DCF8C6;
+        align-self: flex-end;
+        text-align: right;
+    }
+
+    .received {
+        background-color: #E8E8E8;
+        align-self: flex-start;
+        text-align: left;
+    }
+
+    .message-form {
+        display: flex;
+        padding: 10px;
+        background-color: #EEE;
+        border-top: 1px solid #ccc;
+    }
+
+    .message-form input[type="text"] {
+        flex: 1;
+        padding: 8px;
+        border-radius: 5px;
+        border: 1px solid #CCC;
+        font-size: 14px;
+    }
+
+    .message-form button {
+        padding: 8px 16px;
+        margin-left: 10px;
+        background-color: #5C82B8;
+        border: none;
+        color: white;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .message-form button:hover {
+        background-color: #496a94;
+    }
+
+    .no-chat {
+        text-align: center;
+        color: #555;
+        margin: auto;
+    }
+
+    .chat-messages {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        background-color: #f8f8f8;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .message {
+        margin: 8px 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        max-width: 70%;
+        word-break: break-word;
+    }
+
+    /* 自分のメッセージは右寄せ */
+    .sent {
+        background-color: #DCF8C6;
+        align-self: flex-end;
+        text-align: right;
+    }
+
+    /* 相手のメッセージは左寄せ */
+    .received {
+        background-color: #E8E8E8;
+        align-self: flex-start;
+        text-align: left;
+    }
+</style>
+
+<div class="mail-container">
+
+    <!-- 左：ユーザー一覧 -->
+    <div class="sidebar">
+        <form method="GET" action="" style="display:flex; gap:5px; margin-bottom:10px;">
+        <input type="text" name="q" placeholder="🔍 ユーザーを検索..." class="search-box" value="{{ request.GET.q }}">
+        <button type="submit" style="padding:5px 10px;">検索</button>
+        <button type="submit" name="q" value="" style="padding:5px 10px;">全件表示</button>
+    </form>
+
+        {% for user in users %}
+        <a href="{% url 'mail_detail' user.id %}" class="user-item">
+            <div class="user-icon">👤</div>
+            <span class="user-name">
+                {% if user.child_name %}
+                    {{ user.child_name }}
+                {% else %}
+                    {{ user.name }}
+                {% endif %}
+            </span>
+            {% if is_student %}
+                <span style="margin-left: auto; font-size: 12px; color: #555;">
+                    {{ user.permission_level }}
+                </span>
+            {% endif %}
+        </a>
+    {% empty %}
+        <p>該当するユーザーがいません。</p>
+    {% endfor %}
+
+
+    </div>
+
+    <!-- 右：チャット画面 -->
+    <div class="chat-area">
+        {% if selected_user %}
+            <div class="chat-header">
+                {% if selected_user.child_name %}
+                    {{ selected_user.child_name }} さん
+                {% else %}
+                    {{ selected_user.name }} さん
+                {% endif %}
+            </div>
+
+            <div class="chat-messages">
+                {% for message in messages %}
+                    <div class="message {% if message.sender == current_user %}sent{% else %}received{% endif %}">
+                        {{ message.content }}
+                    </div>
+                {% empty %}
+                    <p class="no-chat">メッセージはまだありません。</p>
+                {% endfor %}
+            </div>
+
+            <form method="POST" class="message-form">
+                {% csrf_token %}
+                {{ form.content }}
+                <button type="submit">送信</button>
+            </form>
+        {% else %}
+            <div class="no-chat">
+                <h3>左のユーザーを選択してください</h3>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
