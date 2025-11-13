@@ -1,3 +1,4 @@
+# app/models.py
 from django.db import models
 
 #保護者
@@ -62,13 +63,10 @@ class Student(models.Model):
         verbose_name_plural = "生徒一覧"
 
     def __str__(self):
-        return f"{self.child_name} parent: {self.parent.name}"
+        return f"{self.child_name} ({self.parent_name})"
 
 #講師
 class Teacher(models.Model):
-    user_type = models.CharField(
-        max_length=10, default='teacher', verbose_name="ユーザータイプ" 
-    )
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
@@ -118,52 +116,7 @@ class Teacher(models.Model):
         verbose_name_plural = "講師一覧"
 
     def __str__(self):
-        return f"{self.name} ({self.permission_level})"
-
-#スケジュール
-class Schedule(models.Model):
-    STATUS_CHOICES = [
-        ('予定', '予定'),
-        ('出席', '出席'),
-        ('欠席', '欠席'),
-        ('振替', '振替'),
-        ('中止', '中止'),
-    ]
-
-    date = models.DateField(verbose_name="授業日")
-    start_time = models.TimeField(verbose_name="開始時刻")
-    end_time = models.TimeField(verbose_name="終了時刻")
-
-    teacher = models.ForeignKey(
-        Teacher,
-        on_delete=models.CASCADE,
-        verbose_name="担当講師",
-        related_name="schedules"
-    )
-    student = models.ForeignKey(
-        Student,
-        on_delete=models.CASCADE,
-        verbose_name="生徒",
-        related_name="schedules"
-    )
-
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS_CHOICES,
-        default='予定',
-        verbose_name="ステータス"
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="登録日時")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
-
-    class Meta:
-        db_table = "schedule"
-        verbose_name = "授業スケジュール"
-        verbose_name_plural = "授業スケジュール一覧"
-
-    def __str__(self):
-        return f"{self.date} {self.start_time}-{self.end_time} / {self.teacher} -> {self.student}"
+        return f"{self.sender} → {self.receiver}: {self.content[:20]}"
 
 class Message(models.Model):
     # 送信者
