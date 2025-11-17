@@ -48,7 +48,7 @@
 <body>
 
 <header>
-    {% block header %}学習管理システム{% endblock %}
+    {% block header %}<h2>学習管理システム</h2>{% endblock %}
 </header>
 
 <main>
@@ -56,23 +56,29 @@
 </main>
 
 <footer>
-    <a href="{% url 'home' %}">
+    <!-- 今はまだ存在しないページは '#' に退避 -->
+    <a href="#">
         <span class="icon">🏠</span>
         <div>ホーム</div>
     </a>
-    <a href="{% url 'home' %}">
+
+    <a href="#">
         <span class="icon">👤</span>
-        <div>生徒</div>
+        <div>生徒情報</div>
     </a>
-    <a href="{% url 'home' %}">
+
+    <a href="#">
         <span class="icon">✉️</span>
         <div>メール</div>
     </a>
-    <a href="{% url 'home' %}">
+
+    <!-- カレンダーだけ実際のURLを使う -->
+    <a href="{% url 'app:calendar_month' %}">
         <span class="icon">📅</span>
         <div>カレンダー</div>
     </a>
-    <a href="{% url 'home' %}">
+
+    <a href="#">
         <span class="icon">⚙️</span>
         <div>設定</div>
     </a>
