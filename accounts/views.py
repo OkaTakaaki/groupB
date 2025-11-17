@@ -21,7 +21,7 @@ def login(request):
                 request.session['user_type'] = 'parent'
                 request.session['user_id'] = parent.id
                 messages.success(request, f"{parent.name}さん、ログインしました。")
-                return redirect('home')
+                return redirect('app:home')
 
         # 講師ログイン
         teacher = Teacher.objects.filter(login_id=login_id).first()

@@ -181,7 +181,7 @@
     </form>
 
         {% for user in users %}
-        <a href="{% url 'mail_detail' user.id %}" class="user-item">
+        <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
             <div class="user-icon">👤</div>
             <span class="user-name">
                 {% if user.child_name %}
