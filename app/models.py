@@ -1,5 +1,5 @@
 from django.db import models
-
+ 
 #保護者
 class Parent(models.Model):
     login_id = models.EmailField(
@@ -17,7 +17,7 @@ class Parent(models.Model):
     phone = models.CharField(
         max_length=20, blank=True, null=True, verbose_name="電話番号"
     )
-
+ 
 #生徒
 class Student(models.Model):
     parent = models.ForeignKey(Parent, null=True, blank=True, on_delete=models.SET_NULL)
@@ -27,7 +27,7 @@ class Student(models.Model):
         ('女', '女'),
         ('その他', 'その他'),
     ]
-
+ 
     user_type = models.CharField(
         max_length=10, default='student', verbose_name="ユーザータイプ"
     )
@@ -55,32 +55,32 @@ class Student(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, verbose_name="更新日時"
     )
-
+ 
     class Meta:
         db_table = 'students'
         verbose_name = "生徒"
         verbose_name_plural = "生徒一覧"
-
+ 
     def __str__(self):
         return f"{self.child_name} parent: {self.parent.name}"
-
+ 
 #講師
 class Teacher(models.Model):
     user_type = models.CharField(
-        max_length=10, default='teacher', verbose_name="ユーザータイプ" 
+        max_length=10, default='teacher', verbose_name="ユーザータイプ"
     )
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
         ('その他', 'その他'),
     ]
-
+ 
     PERMISSION_CHOICES = [
         ('一般講師', '一般講師'),
         ('主任講師', '主任講師'),
         ('管理者', '管理者'),
     ]
-
+ 
     login_id = models.EmailField(
         max_length=100, unique=True, verbose_name="ログインID"
     )
@@ -111,15 +111,15 @@ class Teacher(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, verbose_name="更新日時"
     )
-
+ 
     class Meta:
         db_table = 'teachers'
         verbose_name = "講師"
         verbose_name_plural = "講師一覧"
-
+ 
     def __str__(self):
         return f"{self.name} ({self.permission_level})"
-
+ 
 #スケジュール
 class Schedule(models.Model):
     STATUS_CHOICES = [
@@ -178,7 +178,7 @@ class Message(models.Model):
     teacher_sender = models.ForeignKey(
         Teacher, related_name='sent_messages', on_delete=models.CASCADE, blank=True, null=True
     )
-
+ 
     # 受信者
     student_receiver = models.ForeignKey(
         Student, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
@@ -186,10 +186,10 @@ class Message(models.Model):
     teacher_receiver = models.ForeignKey(
         Teacher, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
     )
-
+ 
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
-
+ 
     def __str__(self):
         sender = self.student_sender or self.teacher_sender
         receiver = self.student_receiver or self.teacher_receiver

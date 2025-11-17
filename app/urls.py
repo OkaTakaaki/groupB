@@ -9,4 +9,5 @@ urlpatterns = [
     path("mail_list", views.mail_list, name="mail_list"),
     path("mail/<int:user_id>/", views.mail_list, name="mail_detail"),  
     path("qr", views.qr, name="qr"),
+    path('smenu', views.smenu_view, name='smenu'),
 ]

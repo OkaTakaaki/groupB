@@ -135,3 +135,6 @@ def mail_list(request, user_type=None, user_id=None):
 def qr(request):
     return render(request, 'app/qr.html', {"user_id": 2})
 
+def smenu_view(request):
+    template = loader.get_template("app/smenu.html")
+    return HttpResponse(template.render({}, request))
