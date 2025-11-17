@@ -46,7 +46,6 @@ def setting(request):
 
 
 #チャット
-
 def mail_list(request, user_type=None, user_id=None):
     if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
         return redirect('login')          # ログイン画面へ飛ばす
@@ -132,3 +131,7 @@ def mail_list(request, user_type=None, user_id=None):
     }
 
     return render(request, 'mail_list.html', context)
+
+def qr(request):
+    return render(request, 'app/qr.html', {"user_id": 2})
+

@@ -56,11 +56,8 @@ class TeacherAdmin(admin.ModelAdmin):
 # =========================
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
-    list_display = (
-        'id', 'date', 'start_time', 'end_time',
-        'teacher', 'student', 'status'
-    )
-    list_filter = ('date', 'status', 'teacher')
-    search_fields = ('teacher__name', 'student__child_name')
-    ordering = ('-date',)
-    list_per_page = 20
+    list_display = ('id', 'date', 'start_time', 'end_time', 'teacher', 'student_name')
+
+    def student_name(self, obj):
+        return obj.student.child_name  # 関連するStudentモデルから名前を取得
+    student_name.short_description = '生徒氏名'

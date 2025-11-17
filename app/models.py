@@ -21,7 +21,7 @@ class Parent(models.Model):
 #生徒
 class Student(models.Model):
     parent = models.ForeignKey(Parent, null=True, blank=True, on_delete=models.SET_NULL)
-
+    qr_code = models.ImageField(upload_to='qr_codes/', blank=True, null=True)
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
@@ -129,42 +129,47 @@ class Schedule(models.Model):
         ('振替', '振替'),
         ('中止', '中止'),
     ]
-
+ 
     date = models.DateField(verbose_name="授業日")
     start_time = models.TimeField(verbose_name="開始時刻")
     end_time = models.TimeField(verbose_name="終了時刻")
-
+ 
     teacher = models.ForeignKey(
         Teacher,
         on_delete=models.CASCADE,
         verbose_name="担当講師",
         related_name="schedules"
     )
-    student = models.ForeignKey(
+ 
+    # ★★★ 変更①：生徒を複数選択できるように ManyToManyField に変更 ★★★
+    # ★★★ 変更②：ManyToManyField には on_delete は書かないので削除 ★★★
+    students = models.ManyToManyField(
         Student,
-        on_delete=models.CASCADE,
-        verbose_name="生徒",
+        verbose_name="生徒（複数）",      # ← 表示名も複数に変更
         related_name="schedules"
     )
-
+ 
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
         default='予定',
         verbose_name="ステータス"
     )
-
+ 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="登録日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
-
+ 
     class Meta:
         db_table = "schedule"
         verbose_name = "授業スケジュール"
         verbose_name_plural = "授業スケジュール一覧"
-
+ 
+    # ★★★ 変更③：複数生徒の名前をカンマ区切りで表示できるように修正 ★★★
     def __str__(self):
-        return f"{self.date} {self.start_time}-{self.end_time} / {self.teacher} -> {self.student}"
+        student_names = ", ".join(s.child_name for s in self.students.all())
+        return f"{self.date} {self.start_time}-{self.end_time} / {self.teacher} -> {student_names}"
 
+# メッセージ
 class Message(models.Model):
     # 送信者
     student_sender = models.ForeignKey(

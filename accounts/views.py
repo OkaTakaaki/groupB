@@ -2,8 +2,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from app.models import Student, Teacher, Parent
 from django.contrib.auth.hashers import make_password, check_password
-import traceback
 from django import forms
+from PIL import Image
+import qrcode, traceback, io, base64
+from io import BytesIO
+from django.core.files.base import ContentFile
 
 #login
 def login(request):
@@ -78,8 +81,13 @@ def scaccount(request):
                         'phone': form.cleaned_data.get('parent_phone', ''),
                     }
                 )
+                qr_data = form.cleaned_data['parent_login_id']
+                qr_img = qrcode.make(qr_data)
+                buffer = BytesIO()
+                qr_img.save(buffer, format='PNG')
                 student = form.save(commit=False)
                 student.parent = parent
+                student.qr_code.save(f"{qr_data}.png", ContentFile(buffer.getvalue()))
                 student.save()
 
                 messages.success(request, f"生徒「{student.child_name}」を登録しました。")
@@ -143,15 +151,37 @@ def student_select(request):
 
 #student-edit-account
 def seaccount(request, student_id):
-    """生徒情報編集ページ"""
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
+    if 'user_id' not in request.session:
+        return redirect('login')
+    
     student = get_object_or_404(Student, id=student_id)
+    old_email = student.parent.login_id if student.parent else None
 
     if request.method == 'POST':
         form = StudentForm(request.POST, instance=student)
         if form.is_valid():
-            form.save()
+            student = form.save(commit=False)
+            
+            # Parent のメールアドレス変更があった場合
+            if student.parent and old_email != student.parent.login_id:
+                # QRコードを生成
+                qr = qrcode.QRCode(
+                    version=1,
+                    error_correction=qrcode.constants.ERROR_CORRECT_L,
+                    box_size=10,
+                    border=4,
+                )
+                qr.add_data(student.parent.login_id)
+                qr.make(fit=True)
+
+                img = qr.make_image(fill_color="black", back_color="white")
+
+                # メモリ上で保存
+                buffer = io.BytesIO()
+                img.save(buffer, format="PNG")
+                student.qr_code.save(f"qr_{student.id}.png", ContentFile(buffer.getvalue()), save=False)
+
+            student.save()
             messages.success(request, '生徒情報を更新しました。')
             return redirect('seaccount', student_id=student.id)
         else:
@@ -188,3 +218,4 @@ def teaccount(request, teacher_id):
         form = TeacherForm(instance=teacher)
 
     return render(request, 'accounts/teaccount.html', {'form': form, 'teacher': teacher})
+
