@@ -13,7 +13,7 @@
         header {
             background-color: #5C82B8;
             color: white;
-            padding: 10px;
+            padding: 10px;  
             text-align: center;
         }
         main {
@@ -56,23 +56,30 @@
 </main>
 
 <footer>
-    <a href="{% url 'home' %}">
+    <!-- 今はまだ存在しないページは '#' に退避 -->
+    <a href="home">
         <span class="icon">🏠</span>
         <div>ホーム</div>
     </a>
-    <a href="{% url 'student_information' %}">
+
+
+    <a href="student_information">
         <span class="icon">👤</span>
         <div>生徒情報</div>
     </a>
-    <a href="{% url 'mail_list' %}">
+
+    <a href="{% url 'app:mail_list' %}">
         <span class="icon">✉️</span>
         <div>メール</div>
     </a>
-    <a href="{% url 'calendar' %}">
+
+    <!-- カレンダーだけ実際のURLを使う -->
+    <a href="{% url 'app:calendar_month' %}">
         <span class="icon">📅</span>
         <div>カレンダー</div>
     </a>
-    <a href="{% url 'setting' %}">
+
+    <a href="{% url 'app:setting' %}">
         <span class="icon">⚙️</span>
         <div>設定</div>
     </a>

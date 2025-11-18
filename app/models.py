@@ -120,7 +120,6 @@ class Teacher(models.Model):
     def __str__(self):
         return f"{self.name} ({self.permission_level})"
  
-#スケジュール
 class Schedule(models.Model):
     STATUS_CHOICES = [
         ('予定', '予定'),
@@ -140,10 +139,11 @@ class Schedule(models.Model):
         verbose_name="担当講師",
         related_name="schedules"
     )
-    student = models.ForeignKey(
+    # ★★★ 変更①：生徒を複数選択できるように ManyToManyField に変更 ★★★
+    # ★★★ 変更②：ManyToManyField には on_delete は書かないので削除 ★★★
+    students = models.ManyToManyField(
         Student,
-        on_delete=models.CASCADE,
-        verbose_name="生徒",
+        verbose_name="生徒（複数）",      # ← 表示名も複数に変更
         related_name="schedules"
     )
  
@@ -161,10 +161,11 @@ class Schedule(models.Model):
         db_table = "schedule"
         verbose_name = "授業スケジュール"
         verbose_name_plural = "授業スケジュール一覧"
- 
+    # ★★★ 変更③：複数生徒の名前をカンマ区切りで表示できるように修正 ★★★
     def __str__(self):
-        return f"{self.date} {self.start_time}-{self.end_time} / {self.teacher} -> {self.student}"
- 
+        student_names = ", ".join(s.child_name for s in self.students.all())
+        return f"{self.date} {self.start_time}-{self.end_time} / {self.teacher} -> {student_names}"
+
 class Message(models.Model):
     # 送信者
     student_sender = models.ForeignKey(
@@ -189,3 +190,13 @@ class Message(models.Model):
         sender = self.student_sender or self.teacher_sender
         receiver = self.student_receiver or self.teacher_receiver
         return f"{sender} → {receiver}: {self.content[:20]}"
+    
+#お知らせ一覧
+class Notice(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    date = models.DateField(auto_now_add=True)
+    sender = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.title}（{self.date}）"

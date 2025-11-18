@@ -96,6 +96,14 @@ body {
 
     {# 🧑‍💼 管理者ログイン時 #}
     {% elif user_type == 'teacher' and teacher_level == '管理者' %}
+      <a href="{% url 'teacher_select' %}" class="settings-item">
+          <span class="icon">👨‍🏫</span>
+          <span>講師情報の編集</span>
+      </a>
+      <a href="{% url 'student_select' %}" class="settings-item">
+          <span class="icon">👥</span>
+          <span>生徒情報の編集</span>
+      </a>
       <a href="{% url 'tcaccount' %}" class="settings-item">
           <span class="icon">👨‍🏫➕</span>
           <span>講師アカウントの作成</span>
