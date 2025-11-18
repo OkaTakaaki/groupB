@@ -190,3 +190,13 @@ class Message(models.Model):
         sender = self.student_sender or self.teacher_sender
         receiver = self.student_receiver or self.teacher_receiver
         return f"{sender} → {receiver}: {self.content[:20]}"
+    
+#お知らせ一覧
+class Notice(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    date = models.DateField(auto_now_add=True)
+    sender = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.title}（{self.date}）"

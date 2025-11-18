@@ -27,4 +27,5 @@ urlpatterns = [
     path("mail/<int:user_id>/", views.mail_list, name="mail_detail"),  
     path("qr", views.qr, name="qr"),
     path('smenu', views.smenu_view, name='smenu'),
-]
+    path('osirase/', views.osirase, name='osirase'),
+] 

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+ {% block content %}
+ <!DOCTYPE html>
+ <html lang="ja">
+     <head>
+         <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+    h1 {
+        text-align: center;
+        font-size: 28px;
+        font-weight: bold;
+        margin: 30px 0 10px;
+    }
+    .search-container {
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    .search-container input {
+        width: 60%;
+        padding: 8px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+    table {
+        width: 90%;
+        margin: 0 auto;
+        border-collapse: collapse;
+        font-size: 18px;
+    }
+    th {
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 10px;
+    }
+    td {
+        padding: 15px 10px;
+        border-bottom: 2px solid #000;
+    }
+  
+    .footer div {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .footer img {
+        width: 30px;
+        height: 30px;
+        filter: brightness(0) invert(1);
+    }
+</style>
+</head>
+<body>
+
+
+<h1>お知らせ一覧</h1>
+
+<div class="search-container">
+    <form method="get" action="{% url 'osirase' %}">
+        <input type="text" name="q" placeholder="検索..." value="{{ search }}">
+    </form>
+</div>
+
+<table>
+    {% for notice in notices %}
+    <tr>
+        <td style="font-weight:bold;">{{ notice.date }}</td>
+        <td>{{ notice.title }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="2" style="text-align:center;">お知らせはありません。</td>
+    </tr>
+    {% endfor %}
+</table>
+
+
+
+</body>
+</html>
+
+{% endblock %}

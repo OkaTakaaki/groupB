@@ -30,6 +30,8 @@ from .models import Schedule
 from .forms import ScheduleForm
 from django.views.generic import TemplateView
 
+from django.db.models import Q
+from .models import Notice  # ← 追加
 
 #ホーム
 def home(request):
@@ -382,3 +384,17 @@ class ScheduleDeleteView(DeleteView):
 
     def get_success_url(self):
         return reverse("app:calendar_month")
+# お知らせ一覧
+def osirase(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
+
+    search = request.GET.get('q', '')
+    if search:
+        notices = Notice.objects.filter(
+            Q(title__icontains=search) | Q(date__icontains=search)
+        ).order_by('-date')
+    else:
+        notices = Notice.objects.all().order_by('-date')
+
+    return render(request, 'osirase.html', {'notices': notices, 'search': search})
