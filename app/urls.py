@@ -7,5 +7,6 @@ urlpatterns = [
     path("calendar", views.calendar, name="calendar"),
     path("setting", views.setting, name="setting"),
     path("mail_list", views.mail_list, name="mail_list"),
-    path("mail/<int:user_id>/", views.mail_list, name="mail_detail"),  
-]
+    path("mail/<int:user_id>/", views.mail_list, name="mail_detail"), 
+    path('osirase/', views.osirase, name='osirase'),
+] 

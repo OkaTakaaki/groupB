@@ -23,7 +23,7 @@ class Student(models.Model):
     user_type = models.CharField(
         max_length=10, default='student', verbose_name="ユーザータイプ"
     )
-    parent = models.ForeignKey(Parent, on_delete=models.CASCADE)
+    parent = models.ForeignKey(Parent, null=True, blank=True, on_delete=models.SET_NULL)
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
@@ -188,3 +188,13 @@ class Message(models.Model):
         sender = self.student_sender or self.teacher_sender
         receiver = self.student_receiver or self.teacher_receiver
         return f"{sender} → {receiver}: {self.content[:20]}"
+    
+#お知らせ一覧
+class Notice(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    date = models.DateField(auto_now_add=True)
+    sender = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.title}（{self.date}）"

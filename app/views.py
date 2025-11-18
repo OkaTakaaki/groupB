@@ -4,6 +4,7 @@ from .forms import MessageForm
 from django.http import HttpResponse
 from django.template import loader
 from django.db.models import Q
+from .models import Notice  # ← 追加
 
 #ホーム
 def home(request):
@@ -135,3 +136,18 @@ def mail_list(request, user_type=None, user_id=None):
     }
 
     return render(request, 'mail_list.html', context)
+
+# お知らせ一覧
+def osirase(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
+
+    search = request.GET.get('q', '')
+    if search:
+        notices = Notice.objects.filter(
+            Q(title__icontains=search) | Q(date__icontains=search)
+        ).order_by('-date')
+    else:
+        notices = Notice.objects.all().order_by('-date')
+
+    return render(request, 'osirase.html', {'notices': notices, 'search': search})
