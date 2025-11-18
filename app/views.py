@@ -1,3 +1,22 @@
+from datetime import date, timedelta, datetime, time
+import calendar
+import locale
+import jpholiday  # ★祝日判定（追加）
+
+# Django
+from django.shortcuts import render, redirect, get_object_or_404
+from django.views import View
+from django.views.generic import TemplateView, FormView, UpdateView, DeleteView
+from django.urls import reverse_lazy, reverse
+from django.http import HttpResponse
+from django.template import loader
+from django.db.models import *
+
+# Local Imports
+from .models import Schedule, Student, Parent, Teacher, Message
+from .forms import ScheduleForm, MessageForm
+
+
 from django.shortcuts import render, redirect
 from django.views import View
 from django.views.generic import FormView, UpdateView, DeleteView
@@ -10,6 +29,151 @@ import jpholiday   # ★祝日判定（追加）
 from .models import Schedule
 from .forms import ScheduleForm
 from django.views.generic import TemplateView
+
+
+#ホーム
+def home(request):
+    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
+        return redirect('login')          # ログイン画面へ飛ばす
+    return render(request, 'home.html')
+
+#生徒
+def student_information(request):
+    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
+        return redirect('login')  # ログイン画面へ飛ばす
+    return render(request, 'student_information.html')
+
+#カレンダー
+def calendar_view(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
+    return render(request, 'calendar.html')
+
+#設定
+def setting(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
+
+    user_type = request.session.get('user_type')  # 'student', 'parent', 'teacher', 'admin'など
+    user_id = request.session.get('user_id')
+
+    # 教師モデルなどからparent情報を取得
+    teacher_level = None
+    if user_type == 'teacher':
+        teacher = Teacher.objects.get(id=user_id)
+        teacher_level = teacher.permission_level
+
+    context = {
+        'user_type': user_type,
+        'user_id': user_id,
+        'teacher_level': teacher_level,
+    }
+    return render(request, 'setting.html', context)
+
+
+#チャット
+def mail_list(request, user_type=None, user_id=None):
+    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
+        return redirect('login')          # ログイン画面へ飛ばす
+
+    # ログインユーザー情報取得
+    current_type = request.session['user_type']
+    current_id = request.session['user_id']
+
+    if current_type == 'student'or current_type == 'parent':
+        current_user = get_object_or_404(Student, id=current_id)
+    else:
+        current_user = get_object_or_404(Teacher, id=current_id)
+
+    # チャット相手
+    selected_user = None
+    messages = []
+
+    if user_id:  # user_type は不要
+        if current_type == 'student' or current_type == 'parent':
+            current_user = get_object_or_404(Student, id=current_id)
+            if user_id:
+                selected_user = get_object_or_404(Teacher, id=user_id)
+        elif current_type == 'teacher':
+            current_user = get_object_or_404(Teacher, id=current_id)
+            if user_id:
+                selected_user = get_object_or_404(Student, id=user_id)
+        else:
+            # parent などログイン不可ユーザーはリダイレクト
+            return redirect('home')
+
+        # メッセージ取得
+        if current_type == 'student' or current_type == 'parent':
+            messages = Message.objects.filter(
+                Q(student_sender=current_user, teacher_receiver=selected_user) |
+                Q(teacher_sender=selected_user, student_receiver=current_user)
+            ).order_by('timestamp')
+        else:
+            messages = Message.objects.filter(
+                Q(teacher_sender=current_user, student_receiver=selected_user) |
+                Q(student_sender=selected_user, teacher_receiver=current_user)
+            ).order_by('timestamp')
+
+    # メッセージ送信処理
+    if request.method == 'POST' and selected_user:
+        form = MessageForm(request.POST)
+        if form.is_valid():
+            msg = form.save(commit=False)
+
+            # sender / receiver をモデルに合わせる
+            if current_type == 'student' or current_type == 'parent':
+                msg.student_sender = current_user
+                msg.teacher_receiver = selected_user
+            else:
+                msg.teacher_sender = current_user
+                msg.student_receiver = selected_user
+
+            msg.save()
+            return redirect('app:mail_detail', user_id=user_id)  # ← 名前空間 'app:' を追加
+
+
+    else:
+        form = MessageForm()
+
+    # ユーザー一覧（チャット可能な相手）
+
+    query = request.GET.get('q', '')
+    if current_type == 'student' or current_type == 'parent':
+        users = Teacher.objects.all()
+        if query:
+            users = users.filter(name__icontains=query)
+        
+    else:
+        users = Student.objects.all()
+        if query:
+            users = users.filter(name__icontains=query)
+
+    context = {
+        'users': users,
+        'selected_user': selected_user,
+        'messages': messages,
+        'form': form,
+        'current_user': current_user,
+        'is_student': current_type == 'student'
+    }
+
+    return render(request, 'mail_list.html', context)
+
+def qr(request):
+    return render(request, 'app/qr.html', {"user_id": 2})
+
+def smenu_view(request):
+    template = loader.get_template("app/smenu.html")
+    return HttpResponse(template.render({}, request))
+
+# ロケール設定
+try:
+    locale.setlocale(locale.LC_TIME, 'ja_JP.UTF-8')
+except:
+    pass
+
+def get_month_data(target_date):
+    """月間カレンダーデータを生成"""
 
 # ロケール設定
 try:
@@ -179,8 +343,14 @@ class ScheduleCreateView(FormView):
 
         # URLの日付をセット
         date_param = self.request.GET.get("date")
+        date_param = self.request.GET.get("date")
         if date_param:
-            schedule.date = date_param
+            try:
+                # ISO形式（YYYY-MM-DD）を想定
+                schedule.date = datetime.strptime(date_param, "%Y-%m-%d").date()
+            except ValueError:
+                # フォーマットが違う場合は無視するか、今日の日付をセット
+                schedule.date = date.today()
 
         schedule.save()
         form.save_m2m()
@@ -212,10 +382,3 @@ class ScheduleDeleteView(DeleteView):
 
     def get_success_url(self):
         return reverse("app:calendar_month")
-
-
-# ===============================
-# ホーム画面
-# ===============================
-class HomeView(TemplateView):
-    template_name = "app/home.html"

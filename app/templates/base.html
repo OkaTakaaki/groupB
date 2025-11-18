@@ -57,17 +57,18 @@
 
 <footer>
     <!-- 今はまだ存在しないページは '#' に退避 -->
-    <a href="#">
+    <a href="home">
         <span class="icon">🏠</span>
         <div>ホーム</div>
     </a>
 
-    <a href="#">
+
+    <a href="student_information">
         <span class="icon">👤</span>
         <div>生徒情報</div>
     </a>
 
-    <a href="#">
+    <a href="{% url 'app:mail_list' %}">
         <span class="icon">✉️</span>
         <div>メール</div>
     </a>
@@ -78,7 +79,7 @@
         <div>カレンダー</div>
     </a>
 
-    <a href="#">
+    <a href="setting">
         <span class="icon">⚙️</span>
         <div>設定</div>
     </a>

@@ -1,10 +1,10 @@
-{% extends "app/base.html" %}
+{% extends "base.html" %}
 {% load app_extras %}
-
+ 
 {% block title %}{{ target_date|date:"Y年n月j日" }} の予定{% endblock %}
-
+ 
 {% block content %}
-
+ 
 <style>
 /* 全体レイアウト */
 .day-wrapper {
@@ -14,7 +14,6 @@
     height: 1440px; /* 24h × 60px */
     border-left: 1px solid #ccc;
 }
-
 /* ★ 0〜23時すべて absolute 描画（ズレない） */
 .time-label {
     position: absolute;
@@ -25,7 +24,6 @@
     font-weight: 600;
     color: #333;
 }
-
 /* 横線 */
 .hour-line {
     position: absolute;
@@ -34,7 +32,6 @@
     height: 1px;
     background: #ddd;
 }
-
 /* クリック可能エリア（透明） */
 .hour-click {
     position: absolute;
@@ -44,7 +41,6 @@
     cursor: pointer;
     z-index: 5;
 }
-
 /* イベントバー */
 .schedule-block {
     position: absolute;
@@ -55,7 +51,6 @@
     color: white;
     font-size: 12px;
 }
-
 /* 色 */
 .status-予定 { background: #5C82B8; }
 .status-出席 { background: #4CAF50; }
@@ -76,12 +71,10 @@
             onclick="location.href='{{ prev_day_url }}'">
         前の日
     </button>
-
     <button class="btn btn-outline-secondary"
             onclick="location.href='{{ month_url }}'">
         月へ戻る
     </button>
-
     <button class="btn btn-outline-primary"
             onclick="location.href='{{ next_day_url }}'">
         次の日

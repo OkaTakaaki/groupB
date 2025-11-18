@@ -1,6 +1,15 @@
+from .models import Message
 from django import forms
 from django.forms import DateInput
 from .models import Schedule, Teacher, Student
+
+class MessageForm(forms.ModelForm):
+    class Meta:
+        model = Message
+        fields = ['content']  # ユーザーが入力するのは本文のみ
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 3, 'placeholder': 'メッセージを入力'}),
+        }
 
 
 class ScheduleForm(forms.ModelForm):

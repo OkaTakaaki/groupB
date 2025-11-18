@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>QRコード表示</title>
+</head>
+<body>
+    <h1>QRコード生成</h1>
+    <p>ユーザーID: {{ user_id }}</p>
+
+    <img src="https://api.qrserver.com/v1/create-qr-code/?data={{ user_id }}&size=200x200" alt="QRコード">
+</body>
+</html>

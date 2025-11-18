@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}生徒アカウント作成{% endblock %}
+
+{% block content %}
+<style>
+.form-container {
+    max-width: 500px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+.form-container h2 {
+    text-align: center;
+    color: #5a82d1;
+    margin-bottom: 20px;
+}
+fieldset {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+legend {
+    font-weight: bold;
+    color: #5a82d1;
+    padding: 0 6px;
+}
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+label {
+    font-weight: bold;
+}
+input, select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1em;
+    width: 100%;
+    box-sizing: border-box;
+}
+button {
+    background-color: #5a82d1;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: 0.2s;
+}
+button:hover {
+    background-color: #3e66b3;
+}
+.message {
+    text-align: center;
+    color: green;
+    font-weight: bold;
+}
+.errorlist {
+    color: red;
+    font-size: 0.9em;
+}
+</style>
+
+<div class="form-container">
+    <h2>生徒アカウント作成</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="message">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <fieldset>
+            <legend>保護者情報</legend>
+            <p>
+                {{ form.parent_login_id.label_tag }}
+                {{ form.parent_login_id }}
+                {{ form.parent_login_id.errors }}
+            </p>
+            <p>
+                {{ form.parent_password.label_tag }}
+                {{ form.parent_password }}
+                {{ form.parent_password.errors }}
+            </p>
+            <p>
+                {{ form.parent_name.label_tag }}
+                {{ form.parent_name }}
+                {{ form.parent_name.errors }}
+            </p>
+            <p>
+                {{ form.parent_phone.label_tag }}
+                {{ form.parent_phone }}
+                {{ form.parent_phone.errors }}
+            </p>
+        </fieldset>
+
+        <fieldset>
+            <legend>生徒情報</legend>
+            <input type="hidden" name="user_type" value="student">
+            <p>
+                {{ form.child_name.label_tag }}
+                {{ form.child_name }}
+                {{ form.child_name.errors }}
+            </p>
+            <p>
+                {{ form.child_name_kana.label_tag }}
+                {{ form.child_name_kana }}
+                {{ form.child_name_kana.errors }}
+            </p>
+            <p>
+                {{ form.birth_date.label_tag }}
+                {{ form.birth_date }}
+                {{ form.birth_date.errors }}
+            </p>
+            <p>
+                {{ form.gender.label_tag }}
+                {{ form.gender }}
+                {{ form.gender.errors }}
+            </p>
+            <p>
+                {{ form.school_name.label_tag }}
+                {{ form.school_name }}
+                {{ form.school_name.errors }}
+            </p>
+            <p>
+                {{ form.address.label_tag }}
+                {{ form.address }}
+                {{ form.address.errors }}
+            </p>
+        </fieldset>
+
+        <button type="submit">登録する</button>
+    </form>
+</div>
+{% endblock %}

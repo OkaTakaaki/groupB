@@ -1,11 +1,11 @@
-{% extends "app/base.html" %}
+{% extends "base.html" %}
 {% load static %}
 {% load app_extras %}
-
+ 
 {% block title %}スケジュール登録{% endblock %}
-
+ 
 {% block content %}
-
+ 
 <style>
     .form-container {
         max-width: 700px;
@@ -15,7 +15,6 @@
         border-radius: 10px;
         box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
     }
-
     h2 {
         text-align: center;
         margin-bottom: 20px;
@@ -37,7 +36,6 @@
         border: 1px solid #ccc;
         margin-top: 5px;
     }
-
     .checkbox-list {
         max-height: 180px;
         overflow-y: auto;
@@ -46,12 +44,10 @@
         border-radius: 6px;
         background: #fafafa;
     }
-
     .form-buttons {
         text-align: center;
         margin-top: 25px;
     }
-
     .btn-submit {
         background: #5C82B8;
         color: #fff;
@@ -59,7 +55,6 @@
         border-radius: 6px;
         text-decoration: none;
     }
-
     .btn-back {
         margin-left: 10px;
         padding: 12px 25px;
@@ -68,7 +63,6 @@
         border-radius: 6px;
         text-decoration: none;
     }
-
     select {
         padding: 6px 8px;
         font-size: 16px;
@@ -95,7 +89,6 @@
             <label>担当講師</label>
             {{ form.teacher }}
         </div>
-
         <!-- 生徒（複数選択） -->
         <div class="form-group">
             <label>生徒（複数可）</label>
@@ -109,7 +102,6 @@
                 {% endfor %}
             </div>
         </div>
-
         <!-- 時間 -->
         <div class="mb-3">
             <label>開始時間</label>
@@ -128,13 +120,11 @@
                 {{ form.end_minute }}
             </div>
         </div>
-
         <!-- ステータス -->
         <div class="form-group">
             <label>ステータス</label>
             {{ form.status }}
         </div>
-
         <div class="form-buttons">
             <button class="btn-submit" type="submit">登録する</button>
             <a href="{{ request.META.HTTP_REFERER }}" class="btn-back">戻る</a>

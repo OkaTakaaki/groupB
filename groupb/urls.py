@@ -1,12 +1,10 @@
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import path, include
 
 urlpatterns = [
-    # トップページ (ルート /) へのアクセスを app/urls.py に渡す
-    path("", include("app.urls")),
-    
+    path('', lambda request: redirect('login')),
     path('admin/', admin.site.urls),
-
-    # accounts.urls が存在しない場合はコメントアウト
-    path("accounts/", include("accounts.urls")),
+    path('app/', include('app.urls')),  # ← app側のurls.pyを読み込む
+    path('accounts/', include('accounts.urls')),  # ← app側のurls.pyを読み込む
 ]

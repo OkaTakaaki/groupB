@@ -1,13 +1,13 @@
-{% extends "app/base.html" %}
-
+{% extends "base.html" %}
+ 
 {% block title %}削除確認{% endblock %}
-
+ 
 {% block content %}
 <h2>削除してもよろしいですか？</h2>
-
+ 
 <p>{{ object.date }} {{ object.start_time|date:"H:i" }}  
 → {{ object.student.child_name }}（{{ object.teacher.name }}）</p>
-
+ 
 <form method="post">
     {% csrf_token %}
     <button type="submit" style="padding:8px 15px;background:#F44336;color:white;border-radius:5px;">
