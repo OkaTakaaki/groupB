@@ -14,7 +14,6 @@
     height: 1440px; /* 24h × 60px */
     border-left: 1px solid #ccc;
 }
- 
 /* ★ 0〜23時すべて absolute 描画（ズレない） */
 .time-label {
     position: absolute;
@@ -25,7 +24,6 @@
     font-weight: 600;
     color: #333;
 }
- 
 /* 横線 */
 .hour-line {
     position: absolute;
@@ -34,7 +32,6 @@
     height: 1px;
     background: #ddd;
 }
- 
 /* クリック可能エリア（透明） */
 .hour-click {
     position: absolute;
@@ -44,7 +41,6 @@
     cursor: pointer;
     z-index: 5;
 }
- 
 /* イベントバー */
 .schedule-block {
     position: absolute;
@@ -55,67 +51,64 @@
     color: white;
     font-size: 12px;
 }
- 
 /* 色 */
 .status-予定 { background: #5C82B8; }
 .status-出席 { background: #4CAF50; }
 .status-欠席 { background: #E53935; }
 .status-振替 { background: #FB8C00; }
 .status-中止 { background: #757575; }
- 
+
 </style>
- 
- 
+
+
 <h2 style="text-align:center; margin-bottom:20px;">
     {{ target_date|date:"Y年n月j日 (D)" }}
 </h2>
- 
+
 <div style="text-align:center; margin-bottom:10px;">
- 
+
     <button class="btn btn-outline-primary"
             onclick="location.href='{{ prev_day_url }}'">
         前の日
     </button>
- 
     <button class="btn btn-outline-secondary"
             onclick="location.href='{{ month_url }}'">
         月へ戻る
     </button>
- 
     <button class="btn btn-outline-primary"
             onclick="location.href='{{ next_day_url }}'">
         次の日
     </button>
- 
+
 </div>
- 
- 
- 
+
+
+
 <div class="day-wrapper">
- 
+
     {% for h in 24|times %}
         <!-- 左の時間（absolute なのでズレない） -->
         <div class="time-label" style="top:{{ h|mul:60 }}px;">
             {{ h }}:00
         </div>
- 
+
         <!-- 横線 -->
         <div class="hour-line" style="top:{{ h|mul:60 }}px;"></div>
- 
+
         <!-- クリックで予定作成 -->
         <div class="hour-click"
             onclick="createSchedule({{ h }})"
             style="top:{{ h|mul:60 }}px;">
         </div>
     {% endfor %}
- 
+
     <!-- イベント描画 -->
     {% for schedule in schedules %}
     {% with start_min=schedule.start_time|time_to_minutes end_min=schedule.end_time|time_to_minutes %}
- 
+
         <div class="schedule-block status-{{ schedule.status }}"
              style="top:{{ start_min }}px; height:{{ end_min|minus:start_min }}px;">
- 
+
             <b>{{ schedule.start_time|time:"H:i" }} - {{ schedule.end_time|time:"H:i" }}</b><br>
             講師：{{ schedule.teacher.name }}<br>
             生徒：
@@ -123,16 +116,16 @@
                 {{ s.child_name }}{% if not forloop.last %}, {% endif %}
             {% endfor %}
         </div>
- 
+
     {% endwith %}
     {% endfor %}
- 
+
 </div>
- 
+
 <script>
 function createSchedule(hour) {
     location.href = "{% url 'app:schedule_create' %}?date={{ target_date }}&start=" + hour + ":00";
 }
 </script>
- 
+
 {% endblock %}

@@ -17,6 +17,20 @@ from .models import Schedule, Student, Parent, Teacher, Message
 from .forms import ScheduleForm, MessageForm
 
 
+from django.shortcuts import render, redirect
+from django.views import View
+from django.views.generic import FormView, UpdateView, DeleteView
+from django.urls import reverse_lazy, reverse
+from datetime import date, timedelta, datetime, time 
+import calendar
+import locale
+import jpholiday   # ★祝日判定（追加）
+
+from .models import Schedule
+from .forms import ScheduleForm
+from django.views.generic import TemplateView
+
+
 #ホーム
 def home(request):
     if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
@@ -151,6 +165,15 @@ def qr(request):
 def smenu_view(request):
     template = loader.get_template("app/smenu.html")
     return HttpResponse(template.render({}, request))
+
+# ロケール設定
+try:
+    locale.setlocale(locale.LC_TIME, 'ja_JP.UTF-8')
+except:
+    pass
+
+def get_month_data(target_date):
+    """月間カレンダーデータを生成"""
 
 # ロケール設定
 try:

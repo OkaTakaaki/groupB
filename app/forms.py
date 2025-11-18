@@ -1,5 +1,3 @@
-# forms.py
-from django import forms
 from .models import Message
 from django import forms
 from django.forms import DateInput

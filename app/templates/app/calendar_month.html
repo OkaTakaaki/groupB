@@ -15,7 +15,6 @@
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
- 
     /* 年月タイトル */
     .month-title {
         text-align: center;
@@ -23,14 +22,12 @@
         font-weight: bold;
         margin-bottom: 20px;
     }
- 
     /* 前月・次月ボタン */
     .nav-row {
         display: flex;
         justify-content: space-between;
         margin-bottom: 10px;
     }
- 
     .nav-btn {
         padding: 6px 12px;
         color: #3b5ea0;
@@ -41,14 +38,12 @@
     .nav-btn:hover {
         background: #eef3ff;
     }
- 
     /* カレンダー表 */
     .calendar-table {
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
     }
- 
     .calendar-table th,
     .calendar-table td {
         border: 1px solid #ddd;
@@ -56,19 +51,19 @@
         vertical-align: top;
         padding: 0;
     }
- 
+
     .sun { color: red; }
     .sat { color: blue; }
- 
-    .not-current-month {
+
+    .not-current-month { 
         background-color: #f0f0f5;
         color: #999;
     }
- 
-    .is-today {
-        background-color: #e6f7ff;
+
+    .is-today { 
+        background-color: #e6f7ff; 
     }
- 
+
     /* セル全体をリンクに */
     .day-cell-link {
         display: block;
@@ -79,7 +74,6 @@
         text-decoration: none;
         position: relative;
     }
- 
     /* 日付の位置を左上に */
     .day-number {
         font-weight: bold;
@@ -87,19 +81,16 @@
         top: 6px;
        
     }
- 
     /* 前月・次月の数字の色を濃く変更 */
     .not-current-month .day-number {
         color: #777 !important;
     }
- 
     /* 祝日名 */
     .holiday-name {
         font-size: 10px;
         color: #e60033;
         margin-top: 20px;
     }
- 
     /* スケジュール表示 */
     .event-item {
         display: block;
@@ -109,26 +100,24 @@
         color: white;
         border-radius: 3px;
     }
- 
     .status-予定 { background-color: #5C82B8; }
     .status-出席 { background-color: #4CAF50; }
     .status-欠席 { background-color: #F44336; }
     .status-振替 { background-color: #FF9800; }
     .status-中止 { background-color: #9E9E9E; }
 </style>
- 
- 
+
+
 <div class="calendar-container">
- 
+
     <!-- ★ 年月 -->
     <div class="month-title">{{ year }}年 {{ month }}月</div>
- 
+
     <!-- ★ 前月 / 次月 -->
     <div class="nav-row">
         <a href="{{ prev_month_url }}" class="nav-btn">&lt; 前の月</a>
         <a href="{{ next_month_url }}" class="nav-btn">次の月 &gt;</a>
     </div>
- 
     <table class="calendar-table">
         <thead>
             <tr>
@@ -141,20 +130,17 @@
                 <th class="sat">土</th>
             </tr>
         </thead>
- 
         <tbody>
             {% for day in calendar_days %}
                 {% if forloop.counter0|divisibleby:7 %}
                 <tr>
                 {% endif %}
- 
                 <td class="
                     {% if not day.is_current_month %}not-current-month{% endif %}
                     {% if day.is_today %}is-today{% endif %}
                 ">
                     <a href="{% url 'app:calendar_day' year=day.date.year month=day.date.month day=day.date.day %}"
                        class="day-cell-link">
- 
                         <!-- 日付番号 -->
                         <span class="day-number"
                               style="
@@ -163,19 +149,16 @@
                               ">
                             {{ day.date.day }}
                         </span>
- 
                         <!-- ★ 祝日名表示 -->
                         {% if day.holiday_name %}
                             <div class="holiday-name">{{ day.holiday_name }}</div>
                         {% endif %}
- 
                         <!-- スケジュール（2件まで） -->
                         {% for schedule in day.schedules|slice:":2" %}
                             <span class="event-item status-{{ schedule.status }}">
                                 {{ schedule.start_time|date:"H:i" }} {{ schedule.student.child_name }}
                             </span>
                         {% endfor %}
- 
                         {% if day.schedules|length > 2 %}
                             <span class="event-item" style="background:#888; text-align:center;">
                                 他 {{ day.schedules|length|add:"-2" }} 件…
@@ -183,16 +166,15 @@
                         {% endif %}
                     </a>
                 </td>
- 
                 {% if forloop.counter|divisibleby:7 %}
                 </tr>
                 {% endif %}
             {% endfor %}
         </tbody>
- 
+
     </table>
 </div>
- 
+
 <!-- 新規スケジュールボタン -->
 <div style="text-align:center;margin-top:20px;">
     <a href="{% url 'app:schedule_create' %}"
@@ -200,5 +182,5 @@
         + 新規スケジュール
     </a>
 </div>
- 
+
 {% endblock %}
