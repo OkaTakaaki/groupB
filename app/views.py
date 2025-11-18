@@ -9,7 +9,21 @@ from django.db.models import Q
 def home(request):
     if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
         return redirect('login')          # ログイン画面へ飛ばす
-    return render(request, 'home.html')
+
+    # ログインユーザー情報取得
+    current_type = request.session['user_type']
+    current_id = request.session['user_id']
+
+    print(f'-------------------------{current_type} : {current_id}-------------------------')
+    # 生徒の場合 → メニュー画面へリダイレクト
+    if current_type == 'student':
+        return redirect('smenu')  # ← URL名に合わせて変更
+    context = {
+        'user_type': current_type,
+        'user_id': current_id,
+    }
+
+    return render(request, 'home.html', context)
 
 #生徒
 def student_information(request):
@@ -136,3 +150,4 @@ def mail_list(request, user_type=None, user_id=None):
 def smenu_view(request):
     template = loader.get_template("app/smenu.html")
     return HttpResponse(template.render({}, request))
+
