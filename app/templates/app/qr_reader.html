@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>QR出席登録</title>
+
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        body { text-align: center; font-family: sans-serif; }
+        #result-box { margin-top: 20px; font-size: 20px; }
+        #reader { width: 300px; margin: auto; display:none; }
+        button { padding: 10px 20px; font-size: 18px; margin-top:20px; }
+    </style>
+</head>
+<body>
+
+<h2>出席登録</h2>
+
+<button id="start-scan">出席する</button>
+
+<div id="reader"></div>
+<div id="result-box"></div>
+
+<script>
+let html5QrCode;  // カメラオブジェクト保持
+let scanning = false;  // カメラ起動フラグ
+
+document.getElementById("start-scan").addEventListener("click", function() {
+    if (scanning) return;  // すでにスキャン中なら何もしない
+
+    document.getElementById("reader").style.display = "block";
+    document.getElementById("result-box").innerHTML = "";
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    Html5Qrcode.getCameras().then(cameras => {
+        if (cameras.length > 0) {
+            scanning = true;  // カメラ起動中フラグON
+            html5QrCode.start(
+                cameras[0].id,
+                { fps: 10, qrbox: 250 },
+                onScanSuccess
+            ).catch(err => {
+                console.error(err);
+                scanning = false;
+            });
+        } else {
+            alert("カメラが見つかりません");
+        }
+    }).catch(err => console.error(err));
+});
+
+function onScanSuccess(qrMessage) {
+    if (!scanning) return;
+
+    scanning = false;
+
+    // 読み取り成功したらカメラ停止
+    html5QrCode.stop().then(() => {
+        document.getElementById("reader").style.display = "none";
+    }).catch(err => console.error(err));
+
+    // QRの内容（メールアドレス）を送信
+    fetch(`/app/qr/scan/?email=${encodeURIComponent(qrMessage)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                document.getElementById("result-box").innerHTML =
+                    `<span style='color:green;'>${data.student}：${data.message}</span>`;
+            } else {
+                document.getElementById("result-box").innerHTML =
+                    `<span style='color:red;'>${data.message}</span>`;
+            }
+        });
+}
+</script>
+
+</body>
+</html>

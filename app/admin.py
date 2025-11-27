@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Parent, Student, Teacher, Schedule
+from .models import Parent, Student, Teacher, Schedule, Message, Attendance
 
 # =========================
 # 保護者モデル
@@ -61,4 +61,42 @@ class ScheduleAdmin(admin.ModelAdmin):
     # ManyToManyField に対応
     def student_name(self, obj):
         return ", ".join([s.child_name for s in obj.students.all()])
+    student_name.short_description = '生徒氏名'
+
+# =========================
+# メッセージモデル
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'sender_name', 'receiver_name', 'content_snippet', 'timestamp')
+
+    def sender_name(self, obj):
+        sender = obj.parent_sender or obj.teacher_sender
+        return sender.name if sender else "不明"
+    sender_name.short_description = '送信者'
+
+    def receiver_name(self, obj):
+        receiver = obj.parent_receiver or obj.teacher_receiver
+        return receiver.name if receiver else "不明"
+    receiver_name.short_description = '受信者'
+
+    def content_snippet(self, obj):
+        return obj.content[:30] + ("..." if len(obj.content) > 30 else "")
+    content_snippet.short_description = '内容'
+
+# =========================
+# 出欠モデル
+# =========================
+
+@admin.register(Attendance)
+class AttendanceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'student_name', 'date', 'status', 'time')
+    list_filter = ('status', 'date')
+    search_fields = ('student__child_name',)
+    ordering = ('-date',)
+    list_per_page = 20
+
+    # student_name を表示
+    def student_name(self, obj):
+        return obj.student.child_name
+    student_name.admin_order_field = 'student__child_name'
     student_name.short_description = '生徒氏名'

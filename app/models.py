@@ -1,4 +1,6 @@
 from django.db import models
+from django.utils import timezone
+from multiselectfield import MultiSelectField
  
 #保護者
 class Parent(models.Model):
@@ -27,7 +29,24 @@ class Student(models.Model):
         ('女', '女'),
         ('その他', 'その他'),
     ]
- 
+
+    DAYS_OF_WEEK = [
+        ('Mon', '月曜日'),
+        ('Tue', '火曜日'),
+        ('Wed', '水曜日'),
+        ('Thu', '木曜日'),
+        ('Fri', '金曜日'),
+        ('Sat', '土曜日'),
+        ('Sun', '日曜日'),
+    ]
+
+    default_attendance_days = MultiSelectField(
+        max_length=50,
+        choices=DAYS_OF_WEEK,
+        verbose_name="基本の出席曜日",
+        default=[],
+    )
+
     user_type = models.CharField(
         max_length=10, default='student', verbose_name="ユーザータイプ"
     )
@@ -168,16 +187,16 @@ class Schedule(models.Model):
 
 class Message(models.Model):
     # 送信者
-    student_sender = models.ForeignKey(
-        Student, related_name='sent_messages', on_delete=models.CASCADE, blank=True, null=True
+    parent_sender = models.ForeignKey(
+        Parent, related_name='sent_messages', on_delete=models.CASCADE, blank=True, null=True
     )
     teacher_sender = models.ForeignKey(
         Teacher, related_name='sent_messages', on_delete=models.CASCADE, blank=True, null=True
     )
  
     # 受信者
-    student_receiver = models.ForeignKey(
-        Student, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
+    parent_receiver = models.ForeignKey(
+        Parent, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
     )
     teacher_receiver = models.ForeignKey(
         Teacher, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
@@ -187,8 +206,8 @@ class Message(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
  
     def __str__(self):
-        sender = self.student_sender or self.teacher_sender
-        receiver = self.student_receiver or self.teacher_receiver
+        sender = self.parent_sender or self.teacher_sender
+        receiver = self.parent_receiver or self.teacher_receiver
         return f"{sender} → {receiver}: {self.content[:20]}"
     
 #お知らせ一覧
@@ -200,3 +219,22 @@ class Notice(models.Model):
 
     def __str__(self):
         return f"{self.title}（{self.date}）"
+    
+class Attendance(models.Model):
+    STATUS_CHOICES = [
+        ('present', '出席'),
+        ('absent', '欠席'),
+        ('late', '遅刻'),
+        ('leave', '早退'),
+    ]
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    date = models.DateField(default=timezone.now)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='present')
+    time = models.TimeField(auto_now_add=True)  # 出席打刻時刻（QRの時間）
+
+    class Meta:
+        unique_together = ('student', 'date')  # 同じ日に二重登録を防ぐ
+
+    def __str__(self):
+        return f"{self.student.child_name} - {self.date} - {self.status}"

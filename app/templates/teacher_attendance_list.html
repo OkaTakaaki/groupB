@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}出席確認{% endblock %}
+
+{% block content %}
+
+<h2 style="margin-bottom: 20px;">本日の出席状況</h2>
+
+<div style="background:#f0f4ff; padding:15px; border-radius:10px; margin-bottom:25px;">
+    <h3 style="margin-top:0;">【今日の出席予定者】</h3>
+
+    {% if scheduled_students %}
+        <ul style="list-style:none; padding:0;">
+            {% for s in scheduled_students %}
+            <li style="background:white; padding:10px; margin:8px 0; border-radius:10px;
+                       display:flex; justify-content:space-between; border:1px solid #dce6ff;">
+                <span>{{ s.child_name }}</span>
+
+                {% if s.id in attended_ids %}
+                    <span style="color:green; font-weight:bold;">✔ 出席済</span>
+                {% else %}
+                    <span style="color:#999;">未出席</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>本日の出席予定者はいません。</p>
+    {% endif %}
+</div>
+
+
+<div style="background:#fff5f5; padding:15px; border-radius:10px;">
+    <h3 style="margin-top:0;">【今日の出席者】</h3>
+
+    {% if attendances %}
+        <ul style="list-style:none; padding:0;">
+            {% for a in attendances %}
+            <li style="background:white; padding:10px; margin:8px 0; border-radius:10px;
+                       display:flex; justify-content:space-between; border:1px solid #ffd6d6;">
+                <span>{{ a.student.child_name }}</span>
+                <span style="color:green;">{{ a.get_status_display }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>本日はまだ出席登録がありません。</p>
+    {% endif %}
+</div>
+
+<!-- 出席登録へ -->
+<a href="{% url 'app:qr_page' %}"
+   style="display:flex; flex-direction:column; align-items:center;
+          background:#5C82B8; color:white; padding:12px; border-radius:12px;
+          text-decoration:none; margin-top:25px;">
+    <span class="icon">📱</span>
+    <div>QRから出席登録へ</div>
+</a>
+
+{% endblock %}
