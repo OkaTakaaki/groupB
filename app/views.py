@@ -42,7 +42,11 @@ def student_parent_menu(request):
 def student_information(request):
     if 'user_id' not in request.session:
         return redirect('login')
-    return render(request, 'student_information.html')
+ 
+    # ★ 追加：データベースの Student をすべて取得して送る
+    students = Student.objects.all()
+ 
+    return render(request, 'student_information.html', { 'students': students})
 
 #カレンダー
 def calendar_view(request):

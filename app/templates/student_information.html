@@ -1,7 +1,143 @@
 {% extends 'base.html' %}
-{% block title %}
-生徒情報
-{% endblock %}
+
 {% block content %}
-<p>この部分は子テンプレートで上書きされました。</p>
+<h1 style="text-align:center; color:#2c3e50;">生徒情報一覧</h1>
+
+<style>
+table {
+    border-collapse: collapse;
+    width: 80%;
+    max-width: 700px;
+    margin: 20px auto;
+    font-family: 'Helvetica', 'Arial', sans-serif;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+th {
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-size: 16px;
+}
+td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    vertical-align: middle;
+}
+.student-name {
+    cursor: pointer;
+    font-weight: bold;
+    color: #2c3e50;
+    padding: 5px 10px;
+    border-radius: 5px;
+    display: inline-block;
+    transition: background-color 0.3s, color 0.3s;
+}
+.student-name:hover {
+    background-color: #ecf0f1;
+    color: #27ae60;
+}
+.phone {
+    display: none;
+    font-size: 14px;
+    color: #555;
+    margin-top: 5px;
+    padding-left: 15px;
+}
+.qr-code {
+    display: none;
+    margin-top: 8px;
+}
+.chat-button {
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 14px;
+    color: white;
+    background-color: #3498db;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.3s;
+}
+.chat-button:hover {
+    background-color: #2980b9;
+}
+</style>
+
+<table>
+    <tr>
+        <th>名前</th>
+        <th style="width:120px; text-align:center;">電話番号</th>
+        <th style="width:120px; text-align:center;">QRコード</th>
+        <th style="width:120px; text-align:center;">操作</th>
+    </tr>
+
+    {% for student in students %}
+    <tr>
+        <!-- 名前 -->
+        <td>
+            <div class="student-name" onclick="toggleInfo('{{ student.id }}')">
+                {{ student.child_name }}
+            </div>
+        </td>
+
+        <!-- 電話番号 -->
+        <td style="text-align:center;">
+            <div id="phone{{ student.id }}" class="phone">
+                {% if student.parent %}
+                    {{ student.parent.phone }}
+                {% else %}
+                    未登録
+                {% endif %}
+            </div>
+        </td>
+
+        <!-- QRコード -->
+        <td style="text-align:center;">
+            {% if student.qr_code %}
+            <img id="qr{{ student.id }}" class="qr-code"
+                 src="{{ student.qr_code.url }}"
+                 alt="QRコード"
+                 style="width:80px; height:80px;">
+            {% else %}
+            <span style="color:#999;">なし</span>
+            {% endif %}
+        </td>
+
+        <!-- 操作（チャット） -->
+        <td style="text-align:center;">
+            <a href="{% url 'app:mail_detail' student.id %}" class="chat-button">チャットへ</a>
+        </td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="4" style="text-align:center; color:#888; font-style:italic;">
+            生徒はいません。
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<script>
+function toggleInfo(id) {
+    const phone = document.getElementById("phone" + id);
+    const qr = document.getElementById("qr" + id);
+
+    // 電話番号 ON/OFF
+    if (phone) {
+        phone.style.display = (phone.style.display === "none" || phone.style.display === "") 
+            ? "block" 
+            : "none";
+    }
+
+    // QRコード ON/OFF
+    if (qr) {
+        qr.style.display = (qr.style.display === "none" || qr.style.display === "") 
+            ? "block" 
+            : "none";
+    }
+}
+</script>
+
 {% endblock %}
