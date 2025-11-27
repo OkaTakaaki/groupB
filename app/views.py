@@ -8,12 +8,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.views.generic import TemplateView, FormView, UpdateView, DeleteView
 from django.urls import reverse_lazy, reverse
-from django.http import HttpResponse
+from django.utils import timezone
+from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.db.models import *
 
 # Local Imports
-from .models import Schedule, Student, Parent, Teacher, Message
+from .models import Schedule, Student, Parent, Teacher, Message, Attendance
 from .forms import ScheduleForm, MessageForm
 
 
@@ -31,32 +32,16 @@ from .forms import ScheduleForm
 from django.views.generic import TemplateView
 
 from django.db.models import Q
-from .models import Notice  # ← 追加
+from .models import Notice
 
-#ホーム
-def home(request):
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
-
-    # ログインユーザー情報取得
-    current_type = request.session['user_type']
-    current_id = request.session['user_id']
-
-    print(f'-------------------------{current_type} : {current_id}-------------------------')
-    # 生徒の場合 → メニュー画面へリダイレクト
-    if current_type == 'student':
-        return redirect('smenu')  # ← URL名に合わせて変更
-    context = {
-        'user_type': current_type,
-        'user_id': current_id,
-    }
-
-    return render(request, 'home.html', context)
+def student_parent_menu(request):
+    user_type = request.session.get('user_type')
+    return render(request, 'student_parent_menu.html', {'user_type': user_type})
 
 #生徒
 def student_information(request):
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')  # ログイン画面へ飛ばす
+    if 'user_id' not in request.session:
+        return redirect('login')
     return render(request, 'student_information.html')
 
 #カレンダー
@@ -70,10 +55,9 @@ def setting(request):
     if 'user_id' not in request.session:
         return redirect('login')
 
-    user_type = request.session.get('user_type')  # 'student', 'parent', 'teacher', 'admin'など
+    user_type = request.session.get('user_type')
     user_id = request.session.get('user_id')
 
-    # 教師モデルなどからparent情報を取得
     teacher_level = None
     if user_type == 'teacher':
         teacher = Teacher.objects.get(id=user_id)
@@ -89,15 +73,14 @@ def setting(request):
 
 #チャット
 def mail_list(request, user_type=None, user_id=None):
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
+    if 'user_id' not in request.session:
+        return redirect('login')
 
-    # ログインユーザー情報取得
     current_type = request.session['user_type']
     current_id = request.session['user_id']
 
     if current_type == 'student'or current_type == 'parent':
-        current_user = get_object_or_404(Student, id=current_id)
+        current_user = get_object_or_404(Parent, id=current_id)
     else:
         current_user = get_object_or_404(Teacher, id=current_id)
 
@@ -105,15 +88,15 @@ def mail_list(request, user_type=None, user_id=None):
     selected_user = None
     messages = []
 
-    if user_id:  # user_type は不要
+    if user_id:
         if current_type == 'student' or current_type == 'parent':
-            current_user = get_object_or_404(Student, id=current_id)
+            current_user = get_object_or_404(Parent, id=current_id)
             if user_id:
                 selected_user = get_object_or_404(Teacher, id=user_id)
         elif current_type == 'teacher':
             current_user = get_object_or_404(Teacher, id=current_id)
             if user_id:
-                selected_user = get_object_or_404(Student, id=user_id)
+                selected_user = get_object_or_404(Parent, id=user_id)
         else:
             # parent などログイン不可ユーザーはリダイレクト
             return redirect('home')
@@ -121,13 +104,13 @@ def mail_list(request, user_type=None, user_id=None):
         # メッセージ取得
         if current_type == 'student' or current_type == 'parent':
             messages = Message.objects.filter(
-                Q(student_sender=current_user, teacher_receiver=selected_user) |
-                Q(teacher_sender=selected_user, student_receiver=current_user)
+                Q(parent_sender=current_user, teacher_receiver=selected_user) |
+                Q(teacher_sender=selected_user, parent_receiver=current_user)
             ).order_by('timestamp')
         else:
             messages = Message.objects.filter(
-                Q(teacher_sender=current_user, student_receiver=selected_user) |
-                Q(student_sender=selected_user, teacher_receiver=current_user)
+                Q(teacher_sender=current_user, parent_receiver=selected_user) |
+                Q(parent_sender=selected_user, teacher_receiver=current_user)
             ).order_by('timestamp')
 
     # メッセージ送信処理
@@ -138,11 +121,11 @@ def mail_list(request, user_type=None, user_id=None):
 
             # sender / receiver をモデルに合わせる
             if current_type == 'student' or current_type == 'parent':
-                msg.student_sender = current_user
+                msg.parent_sender = current_user
                 msg.teacher_receiver = selected_user
             else:
                 msg.teacher_sender = current_user
-                msg.student_receiver = selected_user
+                msg.parent_receiver = selected_user
 
             msg.save()
             return redirect('app:mail_detail', user_id=user_id)  # ← 名前空間 'app:' を追加
@@ -160,7 +143,7 @@ def mail_list(request, user_type=None, user_id=None):
             users = users.filter(name__icontains=query)
         
     else:
-        users = Student.objects.all()
+        users = Parent.objects.all()
         if query:
             users = users.filter(name__icontains=query)
 
@@ -174,9 +157,6 @@ def mail_list(request, user_type=None, user_id=None):
     }
 
     return render(request, 'mail_list.html', context)
-
-def qr(request):
-    return render(request, 'app/qr.html', {"user_id": 2})
 
 def smenu_view(request):
     template = loader.get_template("app/smenu.html")
@@ -412,3 +392,92 @@ def osirase(request):
         notices = Notice.objects.all().order_by('-date')
 
     return render(request, 'osirase.html', {'notices': notices, 'search': search})
+
+# ---------------------------
+# ★ 出席管理
+# ---------------------------
+
+
+#出欠確認
+def qr_page(request):
+    today = timezone.now().date()
+
+    # 今日出席した生徒一覧
+    attendances = Attendance.objects.filter(date=today)
+
+    # 今日の曜日を取得
+    weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    today_week = weekday_map[timezone.now().weekday()]
+
+    # 今日の出席予定者
+    scheduled_students = Student.objects.filter(
+        default_attendance_days__contains=today_week
+    )
+
+    # 出席済みの student.id を配列で取得
+    attended_ids = attendances.values_list("student_id", flat=True)
+
+    return render(
+        request,
+        "app/qr_reader.html",
+        {
+            "attendances": attendances,
+            "scheduled_students": scheduled_students,
+            "attended_ids": attended_ids,
+        }
+    )
+
+
+def qr_attendance(request):
+    email = request.GET.get("email")
+
+    if not email:
+        return JsonResponse({"status": "error", "message": "メールアドレスが取得できません"})
+
+    # メールアドレスから生徒を探す
+    try:
+        student = Student.objects.get(parent__login_id=email)
+    except Student.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "未登録ユーザーです"})
+
+    today = timezone.now().date()
+
+    # 出席記録（重複防止）
+    attendance, created = Attendance.objects.get_or_create(
+        student=student,
+        date=today,
+        defaults={"status": "present"}
+    )
+
+    if not created:
+        attendance.status = "present"
+        attendance.save()
+
+    return JsonResponse({
+        "status": "success",
+        "student": student.child_name,
+        "message": "出席登録しました"
+    })
+
+def attendance_today(request):
+    # 今日の曜日（Mon/Tue/...）
+    weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    today_week = weekday_map[timezone.now().weekday()]
+    print(f"today_week = {today_week}")
+
+    scheduled_students = Student.objects.filter(
+        default_attendance_days__contains=today_week
+    )
+    print(f"scheduled_students = {scheduled_students}")
+
+    attendances = Attendance.objects.filter(date=timezone.now().date())
+    print(f"attendances = {attendances}")
+
+    # 出席済み student_id のセット
+    attended_ids = attendances.values_list('student_id', flat=True)
+
+    return render(request, "teacher_attendance_list.html", {
+        "scheduled_students": scheduled_students,
+        "attendances": attendances,
+        "attended_ids": set(attended_ids),
+    })

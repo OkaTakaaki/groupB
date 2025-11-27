@@ -8,7 +8,11 @@ import qrcode, traceback, io, base64
 from io import BytesIO
 from django.core.files.base import ContentFile
 
-#login
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.hashers import check_password
+from app.models import Parent, Teacher
+
 def login(request):
     if request.method == "POST":
         login_id = request.POST.get("login_id")
@@ -21,7 +25,7 @@ def login(request):
                 request.session['user_type'] = 'parent'
                 request.session['user_id'] = parent.id
                 messages.success(request, f"{parent.name}さん、ログインしました。")
-                return redirect('app:home')
+                return redirect('app:student_parent_menu')
 
         # 講師ログイン
         teacher = Teacher.objects.filter(login_id=login_id).first()
@@ -30,12 +34,11 @@ def login(request):
                 request.session['user_type'] = 'teacher'
                 request.session['user_id'] = teacher.id
                 messages.success(request, f"{teacher.name}先生、ログインしました。")
-                return redirect('home')
+                return redirect('app:attendance_today')
 
         messages.error(request, "メールアドレスまたはパスワードが正しくありません。")
 
     return render(request, 'accounts/login.html')
-
 
 #logout
 def logout(request):
@@ -57,7 +60,7 @@ class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            'child_name', 'child_name_kana', 'user_type',
+            'child_name', 'child_name_kana', 'user_type', 'default_attendance_days',
             'birth_date', 'gender', 'school_name', 'address'
         ]
         widgets = {
@@ -183,7 +186,7 @@ def seaccount(request, student_id):
 
             student.save()
             messages.success(request, '生徒情報を更新しました。')
-            return redirect('seaccount', student_id=student.id)
+            return redirect('student_select')
         else:
             messages.error(request, '入力内容に誤りがあります。')
     else:

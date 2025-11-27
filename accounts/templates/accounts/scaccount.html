@@ -66,6 +66,16 @@ button:hover {
     color: red;
     font-size: 0.9em;
 }
+
+/* ★チェックボックス専用の整列スタイル★ */
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+}
 </style>
 
 <div class="form-container">
@@ -107,6 +117,7 @@ button:hover {
         <fieldset>
             <legend>生徒情報</legend>
             <input type="hidden" name="user_type" value="student">
+
             <p>
                 {{ form.child_name.label_tag }}
                 {{ form.child_name }}
@@ -127,6 +138,14 @@ button:hover {
                 {{ form.gender }}
                 {{ form.gender.errors }}
             </p>
+
+            <!-- ★ここだけチェックボックスなので専用レイアウトに変更★ -->
+            <div class="checkbox-group">
+                {{ form.default_attendance_days.label_tag }}
+                {{ form.default_attendance_days }}
+                {{ form.default_attendance_days.errors }}
+            </div>
+
             <p>
                 {{ form.school_name.label_tag }}
                 {{ form.school_name }}
@@ -142,4 +161,5 @@ button:hover {
         <button type="submit">登録する</button>
     </form>
 </div>
+
 {% endblock %}
