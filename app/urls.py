@@ -20,4 +20,6 @@ urlpatterns = [
     path('osirase/', views.osirase, name='osirase'),
     path("qr/", views.qr_page, name="qr_page"),
     path("qr/scan/", views.qr_attendance, name="qr_attendance"),
+    path("verify-password/", views.verify_password, name="verify_password"),
+
 ] 

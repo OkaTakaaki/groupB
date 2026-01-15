@@ -7,6 +7,9 @@ class Parent(models.Model):
     login_id = models.EmailField(
         max_length=100, unique=True, verbose_name="ログインID(メールアドレス)"
     )
+    qr_code = models.ImageField(
+        upload_to='qr_codes/', blank=True, null=True , verbose_name="QRコード画像"
+    )
     user_type = models.CharField(
         max_length=10, default='parent', verbose_name="ユーザータイプ"
     )
@@ -23,7 +26,7 @@ class Parent(models.Model):
 #生徒
 class Student(models.Model):
     parent = models.ForeignKey(Parent, null=True, blank=True, on_delete=models.SET_NULL)
-    qr_code = models.ImageField(upload_to='qr_codes/', blank=True, null=True)
+    
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),

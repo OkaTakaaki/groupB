@@ -84,13 +84,21 @@ def scaccount(request):
                         'phone': form.cleaned_data.get('parent_phone', ''),
                     }
                 )
-                qr_data = form.cleaned_data['parent_login_id']
-                qr_img = qrcode.make(qr_data)
-                buffer = BytesIO()
-                qr_img.save(buffer, format='PNG')
+                if created or not parent.qr_code:
+                    qr_data = parent.login_id
+                    qr_img = qrcode.make(qr_data)
+
+                    buffer = BytesIO()
+                    qr_img.save(buffer, format='PNG')
+
+                    parent.qr_code.save(
+                        f"{qr_data}.png",
+                        ContentFile(buffer.getvalue()),
+                        save=True
+                    )
+
                 student = form.save(commit=False)
                 student.parent = parent
-                student.qr_code.save(f"{qr_data}.png", ContentFile(buffer.getvalue()))
                 student.save()
 
                 messages.success(request, f"生徒「{student.child_name}」を登録しました。")
@@ -152,37 +160,49 @@ def student_select(request):
         students = Student.objects.all().order_by('id')
     return render(request, 'accounts/sselect.html', {'students': students})
 
-#student-edit-account
+# student-edit-account
 def seaccount(request, student_id):
     if 'user_id' not in request.session:
         return redirect('login')
-    
+
     student = get_object_or_404(Student, id=student_id)
-    old_email = student.parent.login_id if student.parent else None
+    parent = student.parent
+    old_email = parent.login_id if parent else None
 
     if request.method == 'POST':
         form = StudentForm(request.POST, instance=student)
         if form.is_valid():
             student = form.save(commit=False)
-            
-            # Parent のメールアドレス変更があった場合
-            if student.parent and old_email != student.parent.login_id:
-                # QRコードを生成
-                qr = qrcode.QRCode(
-                    version=1,
-                    error_correction=qrcode.constants.ERROR_CORRECT_L,
-                    box_size=10,
-                    border=4,
-                )
-                qr.add_data(student.parent.login_id)
-                qr.make(fit=True)
 
-                img = qr.make_image(fill_color="black", back_color="white")
+            # --- Parent情報の更新 ---
+            if parent:
+                new_email = form.cleaned_data['parent_login_id']
 
-                # メモリ上で保存
-                buffer = io.BytesIO()
-                img.save(buffer, format="PNG")
-                student.qr_code.save(f"qr_{student.id}.png", ContentFile(buffer.getvalue()), save=False)
+                # メールアドレス変更
+                email_changed = old_email != new_email
+                parent.login_id = new_email
+                parent.name = form.cleaned_data['parent_name']
+                parent.phone = form.cleaned_data.get('parent_phone', '')
+
+                # パスワードが入力されていれば更新
+                if form.cleaned_data.get('parent_password'):
+                    parent.password_hash = make_password(
+                        form.cleaned_data['parent_password']
+                    )
+
+                # ★ メール変更時のみQRコード再生成
+                if email_changed or not parent.qr_code:
+                    qr_img = qrcode.make(new_email)
+                    buffer = io.BytesIO()
+                    qr_img.save(buffer, format='PNG')
+
+                    filename = f"parent_qr_{new_email}.png"
+
+                    parent.qr_code.save(
+                        filename,
+                        ContentFile(buffer.getvalue()),
+                        save=True   # ← ここが重要
+                    )
 
             student.save()
             messages.success(request, '生徒情報を更新しました。')
@@ -192,8 +212,12 @@ def seaccount(request, student_id):
     else:
         form = StudentForm(instance=student)
 
-    return render(request, 'accounts/seaccount.html', {'form': form, 'student': student})
+    return render(request, 'accounts/seaccount.html', {
+        'form': form,
+        'student': student
+    })
 
+#teacher-select
 def teacher_select(request):
     if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
         return redirect('login')          # ログイン画面へ飛ばす

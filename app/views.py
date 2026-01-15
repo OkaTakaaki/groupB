@@ -4,6 +4,7 @@ import locale
 import jpholiday  # ★祝日判定（追加）
 
 # Django
+from django.contrib.auth.hashers import check_password
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.views.generic import TemplateView, FormView, UpdateView, DeleteView
@@ -45,8 +46,9 @@ def student_information(request):
  
     # ★ 追加：データベースの Student をすべて取得して送る
     students = Student.objects.all()
- 
-    return render(request, 'student_information.html', { 'students': students})
+    parents = Parent.objects.all()
+
+    return render(request, 'student_information.html', { 'students': students, 'parents': parents})
 
 #カレンダー
 def calendar_view(request):
@@ -464,20 +466,22 @@ def qr_attendance(request):
     })
 
 def attendance_today(request):
-    # 今日の曜日（Mon/Tue/...）
+    # 🔐 再認証チェック
+    if not request.session.get("reauth_ok"):
+        return redirect("app:qr_page")   # QR画面に戻す
+
+    # 1回使ったら無効化（重要）
+    request.session["reauth_ok"] = False
+
+    # 以下は元の処理
     weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     today_week = weekday_map[timezone.now().weekday()]
-    print(f"today_week = {today_week}")
 
     scheduled_students = Student.objects.filter(
         default_attendance_days__contains=today_week
     )
-    print(f"scheduled_students = {scheduled_students}")
 
     attendances = Attendance.objects.filter(date=timezone.now().date())
-    print(f"attendances = {attendances}")
-
-    # 出席済み student_id のセット
     attended_ids = attendances.values_list('student_id', flat=True)
 
     return render(request, "teacher_attendance_list.html", {
@@ -485,3 +489,34 @@ def attendance_today(request):
         "attendances": attendances,
         "attended_ids": set(attended_ids),
     })
+
+
+# 🔐 パスワード再認証API
+def verify_password(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error"})
+
+    user_id = request.session.get("user_id")
+    user_type = request.session.get("user_type")
+
+    if not user_id:
+        return JsonResponse({"status": "not_logged_in"})
+
+    password = request.POST.get("password")
+
+    # ログインユーザー取得
+    if user_type == "teacher":
+        user = get_object_or_404(Teacher, id=user_id)
+    elif user_type in ["student", "parent"]:
+        user = get_object_or_404(Parent, id=user_id)
+    else:
+        return JsonResponse({"status": "error"})
+
+    # パスワード照合
+    if check_password(password, user.password_hash):
+        # ✅ 再認証OKフラグ
+        request.session["reauth_ok"] = True
+        request.session.modified = True
+        return JsonResponse({"status": "success"})
+    else:
+        return JsonResponse({"status": "fail"})

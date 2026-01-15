@@ -95,13 +95,13 @@ td {
 
         <!-- QRコード -->
         <td style="text-align:center;">
-            {% if student.qr_code %}
-            <img id="qr{{ student.id }}" class="qr-code"
-                 src="{{ student.qr_code.url }}"
-                 alt="QRコード"
-                 style="width:80px; height:80px;">
+            {% if student.parent and student.parent.qr_code %}
+                <img id="qr{{ student.parent.id }}" class="qr-code"
+                    src="{{ student.parent.qr_code.url }}"
+                    alt="QRコード"
+                    style="width:80px; height:80px;">
             {% else %}
-            <span style="color:#999;">なし</span>
+                <span style="color:#999;">なし</span>
             {% endif %}
         </td>
 
