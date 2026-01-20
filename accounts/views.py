@@ -11,7 +11,7 @@ from django.core.files.base import ContentFile
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password
-from app.models import Parent, Teacher
+from app.models import Parent, Teacher, StudentAttendanceRule
 
 def login(request):
     if request.method == "POST":
@@ -51,22 +51,75 @@ def logout(request):
 
 
 class StudentForm(forms.ModelForm):
-    # 保護者情報も一緒に入力できるよう追加
+    # -----------------------
+    # 既存：保護者情報
+    # -----------------------
     parent_login_id = forms.EmailField(label="保護者ログインID（メールアドレス）", required=True)
     parent_password = forms.CharField(label="保護者パスワード", widget=forms.PasswordInput, required=True)
     parent_name = forms.CharField(label="保護者氏名", required=True)
     parent_phone = forms.CharField(label="保護者電話番号", required=False)
 
+    # -----------------------
+    # ★ 追加：基本出席ルール
+    # -----------------------
+    DAYS = [
+        ("Mon", "月"),
+        ("Tue", "火"),
+        ("Wed", "水"),
+        ("Thu", "木"),
+        ("Fri", "金"),
+        ("Sat", "土"),
+        ("Sun", "日"),
+    ]
+
+    attendance_days = forms.MultipleChoiceField(
+        label="基本出席曜日",
+        choices=DAYS,
+        widget=forms.CheckboxSelectMultiple,
+        required=True
+    )
+
+    start_time = forms.TimeField(
+        label="開始時刻",
+        widget=forms.TimeInput(attrs={"type": "time"}),
+        required=True
+    )
+
+    end_time = forms.TimeField(
+        label="終了時刻",
+        widget=forms.TimeInput(attrs={"type": "time"}),
+        required=True
+    )
+
     class Meta:
         model = Student
         fields = [
-            'child_name', 'child_name_kana', 'user_type', 'default_attendance_days',
-            'birth_date', 'gender', 'school_name', 'address'
+            'child_name',
+            'child_name_kana',
+            'user_type',
+            'birth_date',
+            'gender',
+            'school_name',
+            'address',
         ]
+
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
             'gender': forms.Select(),
         }
+
+    # -----------------------
+    # ★ 時刻バリデーション
+    # -----------------------
+    def clean(self):
+        cleaned = super().clean()
+        st = cleaned.get("start_time")
+        et = cleaned.get("end_time")
+
+        if st and et and st >= et:
+            raise forms.ValidationError("終了時刻は開始時刻より後にしてください。")
+
+        return cleaned
 
 
 #student-create-account
@@ -75,7 +128,9 @@ def scaccount(request):
         form = StudentForm(request.POST)
         if form.is_valid():
             try:
-                # 保護者を作成または取得（パスワードをハッシュ化して保存）
+                # --------------------
+                # 保護者作成（既存）
+                # --------------------
                 parent, created = Parent.objects.get_or_create(
                     login_id=form.cleaned_data['parent_login_id'],
                     defaults={
@@ -84,22 +139,41 @@ def scaccount(request):
                         'phone': form.cleaned_data.get('parent_phone', ''),
                     }
                 )
+
                 if created or not parent.qr_code:
                     qr_data = parent.login_id
                     qr_img = qrcode.make(qr_data)
-
                     buffer = BytesIO()
                     qr_img.save(buffer, format='PNG')
-
                     parent.qr_code.save(
                         f"{qr_data}.png",
                         ContentFile(buffer.getvalue()),
                         save=True
                     )
 
+                # --------------------
+                # 生徒作成（既存）
+                # --------------------
                 student = form.save(commit=False)
                 student.parent = parent
                 student.save()
+
+                # =================================================
+                # ★ ここから追加：出席ルール保存
+                # =================================================
+                days = form.cleaned_data["attendance_days"]
+                start_time = form.cleaned_data["start_time"]
+                end_time = form.cleaned_data["end_time"]
+
+                for day in days:
+                    StudentAttendanceRule.objects.create(
+                        student=student,
+                        day_of_week=day,
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+
+                # =================================================
 
                 messages.success(request, f"生徒「{student.child_name}」を登録しました。")
                 return redirect('scaccount')
@@ -121,33 +195,76 @@ class TeacherForm(forms.ModelForm):
     class Meta:
         model = Teacher
         fields = [
-            'login_id', 'name','name_kana', 'password_hash', 'birth_date',
-            'gender', 'phone', 'permission_level'
+            'login_id', 
+            'name', 
+            'name_kana',
+            'birth_date',
+            'gender', 
+            'phone', 
+            'permission_level'
         ]
+
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
             'gender': forms.Select(),
             'permission_level': forms.Select(),
         }
+
         labels = {
             'login_id': 'ログインID（メールアドレス）',
         }
 
+
+class TeacherCreateForm(forms.ModelForm):
+    password = forms.CharField(
+        label="パスワード",
+        widget=forms.PasswordInput(),
+        required=True
+    )
+
+    birth_date = forms.DateField(
+        label="生年月日",
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        input_formats=['%Y-%m-%d'],
+        required=True
+    )
+
+    class Meta:
+        model = Teacher
+        fields = [
+            'login_id', 
+            'name', 
+            'name_kana',
+            'birth_date', 
+            'gender', 
+            'phone', 
+            'permission_level'
+        ]
+
 def tcaccount(request):
     if request.method == 'POST':
-        form = TeacherForm(request.POST)
+        form = TeacherCreateForm(request.POST)
         if form.is_valid():
             teacher = form.save(commit=False)
-            # 入力されたパスワードをハッシュ化
-            teacher.password_hash = make_password(form.cleaned_data['password_hash'])
+
+            # ✅ 明示的に user_type をセット
+            teacher.user_type = "teacher"
+
+            # ✅ パスワードをハッシュ化
+            teacher.password_hash = make_password(
+                form.cleaned_data['password']
+            )
+
             teacher.save()
             messages.success(request, '講師アカウントを作成しました。')
             return redirect('tcaccount')
         else:
             print(form.errors)
     else:
-        form = TeacherForm()
+        form = TeacherCreateForm()
+
     return render(request, 'accounts/tcaccount.html', {'form': form})
+
 
 #student-select
 def student_select(request):
@@ -156,9 +273,11 @@ def student_select(request):
     query = request.GET.get('q')
     if query:
         students = Student.objects.filter(id=query)
+        parents = Parent.objects.filter(id=query)
     else:
         students = Student.objects.all().order_by('id')
-    return render(request, 'accounts/sselect.html', {'students': students})
+        parents = Parent.objects.all().order_by('id')
+    return render(request, 'accounts/sselect.html', {'students': students, 'parents': parents})
 
 # student-edit-account
 def seaccount(request, student_id):
@@ -214,6 +333,7 @@ def seaccount(request, student_id):
 
     return render(request, 'accounts/seaccount.html', {
         'form': form,
+        'parent': parent,
         'student': student
     })
 

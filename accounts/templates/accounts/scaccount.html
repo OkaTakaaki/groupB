@@ -4,7 +4,7 @@
 {% block content %}
 <style>
 .form-container {
-    max-width: 500px;
+    max-width: 520px;
     margin: 40px auto;
     background: #fff;
     padding: 30px;
@@ -76,6 +76,15 @@ button:hover {
 .checkbox-group input[type="checkbox"] {
     width: auto;
 }
+
+/* ★ 時刻入力の横並び ★ */
+.time-row {
+    display: flex;
+    gap: 10px;
+}
+.time-row > div {
+    flex: 1;
+}
 </style>
 
 <div class="form-container">
@@ -90,23 +99,30 @@ button:hover {
     <form method="post">
         {% csrf_token %}
 
+        <!-- ===================== -->
+        <!-- 保護者情報 -->
+        <!-- ===================== -->
         <fieldset>
             <legend>保護者情報</legend>
+
             <p>
                 {{ form.parent_login_id.label_tag }}
                 {{ form.parent_login_id }}
                 {{ form.parent_login_id.errors }}
             </p>
+
             <p>
                 {{ form.parent_password.label_tag }}
                 {{ form.parent_password }}
                 {{ form.parent_password.errors }}
             </p>
+
             <p>
                 {{ form.parent_name.label_tag }}
                 {{ form.parent_name }}
                 {{ form.parent_name.errors }}
             </p>
+
             <p>
                 {{ form.parent_phone.label_tag }}
                 {{ form.parent_phone }}
@@ -114,8 +130,12 @@ button:hover {
             </p>
         </fieldset>
 
+        <!-- ===================== -->
+        <!-- 生徒情報 -->
+        <!-- ===================== -->
         <fieldset>
             <legend>生徒情報</legend>
+
             <input type="hidden" name="user_type" value="student">
 
             <p>
@@ -123,39 +143,65 @@ button:hover {
                 {{ form.child_name }}
                 {{ form.child_name.errors }}
             </p>
+
             <p>
                 {{ form.child_name_kana.label_tag }}
                 {{ form.child_name_kana }}
                 {{ form.child_name_kana.errors }}
             </p>
+
             <p>
                 {{ form.birth_date.label_tag }}
                 {{ form.birth_date }}
                 {{ form.birth_date.errors }}
             </p>
+
             <p>
                 {{ form.gender.label_tag }}
                 {{ form.gender }}
                 {{ form.gender.errors }}
             </p>
 
-            <!-- ★ここだけチェックボックスなので専用レイアウトに変更★ -->
-            <div class="checkbox-group">
-                {{ form.default_attendance_days.label_tag }}
-                {{ form.default_attendance_days }}
-                {{ form.default_attendance_days.errors }}
-            </div>
-
             <p>
                 {{ form.school_name.label_tag }}
                 {{ form.school_name }}
                 {{ form.school_name.errors }}
             </p>
+
             <p>
                 {{ form.address.label_tag }}
                 {{ form.address }}
                 {{ form.address.errors }}
             </p>
+        </fieldset>
+
+        <!-- ===================== -->
+        <!-- ★ 基本出席ルール -->
+        <!-- ===================== -->
+        <fieldset>
+            <legend>基本出席ルール</legend>
+
+            <!-- 曜日 -->
+            <div class="checkbox-group">
+                {{ form.attendance_days.label_tag }}
+                {{ form.attendance_days }}
+                {{ form.attendance_days.errors }}
+            </div>
+
+            <!-- 時刻 -->
+            <div class="time-row">
+                <div>
+                    {{ form.start_time.label_tag }}
+                    {{ form.start_time }}
+                    {{ form.start_time.errors }}
+                </div>
+
+                <div>
+                    {{ form.end_time.label_tag }}
+                    {{ form.end_time }}
+                    {{ form.end_time.errors }}
+                </div>
+            </div>
         </fieldset>
 
         <button type="submit">登録する</button>

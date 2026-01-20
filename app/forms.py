@@ -14,7 +14,6 @@ class MessageForm(forms.ModelForm):
 
 class ScheduleForm(forms.ModelForm):
 
-    # ▼ Googleカレンダー風：時・分のドロップダウン
     start_hour = forms.ChoiceField(
         choices=[(str(i).zfill(2), str(i).zfill(2)) for i in range(24)],
         label="開始（時）"
@@ -35,8 +34,9 @@ class ScheduleForm(forms.ModelForm):
 
     class Meta:
         model = Schedule
-        fields = ['teacher', 'students', 'status']
+        fields = ['date', 'teacher', 'students', 'status']
         widgets = {
+            'date': DateInput(attrs={'type': 'date'}),
             'teacher': forms.Select(attrs={'class': 'form-input'}),
             'students': forms.SelectMultiple(attrs={'class': 'form-input', 'size': 6}),
             'status': forms.Select(attrs={'class': 'form-input'}),
@@ -45,32 +45,20 @@ class ScheduleForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ▼ 講師・生徒を並び替え
         self.fields['teacher'].queryset = Teacher.objects.order_by('name')
         self.fields['students'].queryset = Student.objects.order_by('child_name')
 
-        # -----------------------------
-        # ★ 開始時間・終了時間 初期値
-        # -----------------------------
-        # ● ① 更新モード（instanceあり）
-        if self.instance.start_time:
+        if self.instance and self.instance.start_time:
             self.fields['start_hour'].initial = self.instance.start_time.strftime("%H")
-            self.fields['start_minute'].initial = self._round_minute(self.instance.start_time.strftime("%M"))
+            self.fields['start_minute'].initial = self._round_minute(
+                self.instance.start_time.strftime("%M")
+            )
 
-        if self.instance.end_time:
+        if self.instance and self.instance.end_time:
             self.fields['end_hour'].initial = self.instance.end_time.strftime("%H")
-            self.fields['end_minute'].initial = self._round_minute(self.instance.end_time.strftime("%M"))
-
-        # ● ② 新規作成（get_initial() で initial に start_time がある）
-        if "start_time" in self.initial:
-            st = self.initial["start_time"]
-            self.fields['start_hour'].initial = st.strftime("%H")
-            self.fields['start_minute'].initial = self._round_minute(st.strftime("%M"))
-
-        if "end_time" in self.initial:
-            et = self.initial["end_time"]
-            self.fields['end_hour'].initial = et.strftime("%H")
-            self.fields['end_minute'].initial = self._round_minute(et.strftime("%M"))
+            self.fields['end_minute'].initial = self._round_minute(
+                self.instance.end_time.strftime("%M")
+            )
 
     def _round_minute(self, minute):
         minute = int(minute)
@@ -81,18 +69,31 @@ class ScheduleForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-
         from datetime import time
-        cleaned_data["start_time"] = time(
-            int(cleaned_data["start_hour"]),
-            int(cleaned_data["start_minute"])
-        )
-        cleaned_data["end_time"] = time(
-            int(cleaned_data["end_hour"]),
-            int(cleaned_data["end_minute"])
-        )
+
+        sh = cleaned_data.get("start_hour")
+        sm = cleaned_data.get("start_minute")
+        eh = cleaned_data.get("end_hour")
+        em = cleaned_data.get("end_minute")
+
+        if not all([sh, sm, eh, em]):
+            return cleaned_data
+
+        cleaned_data["start_time"] = time(int(sh), int(sm))
+        cleaned_data["end_time"] = time(int(eh), int(em))
 
         if cleaned_data["start_time"] >= cleaned_data["end_time"]:
             self.add_error('end_hour', "終了時刻は開始時刻より後にしてください。")
 
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.start_time = self.cleaned_data["start_time"]
+        instance.end_time = self.cleaned_data["end_time"]
+
+        if commit:
+            instance.save()
+            self.save_m2m()
+
+        return instance

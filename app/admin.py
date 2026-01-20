@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Parent, Student, Teacher, Schedule, Message, Attendance
+from .models import (
+    Parent,
+    Student,
+    Teacher,
+    Schedule,
+    Message,
+    Attendance,
+    StudentAttendanceRule,
+)
 
 # =========================
 # 保護者モデル
@@ -11,6 +19,7 @@ class ParentAdmin(admin.ModelAdmin):
     ordering = ('id',)
     list_per_page = 20
 
+
 # =========================
 # 生徒モデル
 # =========================
@@ -20,25 +29,43 @@ class StudentAdmin(admin.ModelAdmin):
         'id',
         'child_name',
         'parent_name',
-        'login_id',
+        'parent_login_id',
         'birth_date',
         'gender',
         'school_name',
         'address',
-        'created_at'
+        'created_at',
     )
 
-    # parent_name をメソッドとして定義
+    # 保護者氏名
     def parent_name(self, obj):
-        return obj.parent.name
+        return obj.parent.name if obj.parent else "未設定"
     parent_name.admin_order_field = 'parent__name'
     parent_name.short_description = '保護者氏名'
 
-    # 親のログインIDを表示
-    def login_id(self, obj):
-        return obj.parent.login_id
-    login_id.admin_order_field = 'parent__login_id'
-    login_id.short_description = 'ログインID'
+    # 保護者ログインID
+    def parent_login_id(self, obj):
+        return obj.parent.login_id if obj.parent else "未設定"
+    parent_login_id.admin_order_field = 'parent__login_id'
+    parent_login_id.short_description = 'ログインID'
+
+
+# =========================
+# 基本出席ルール
+# =========================
+@admin.register(StudentAttendanceRule)
+class StudentAttendanceRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'student',
+        'day_of_week',
+        'start_time',
+        'end_time',
+    )
+    list_filter = ('day_of_week',)
+    search_fields = ('student__child_name',)
+    ordering = ('student', 'day_of_week')
+
 
 # =========================
 # 講師モデル
@@ -51,20 +78,23 @@ class TeacherAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
     list_per_page = 20
 
+
 # =========================
 # スケジュールモデル
 # =========================
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
-    list_display = ('id', 'date', 'start_time', 'end_time', 'teacher', 'student_name')
+    list_display = ('id', 'date', 'start_time', 'end_time', 'teacher', 'student_names')
 
     # ManyToManyField に対応
-    def student_name(self, obj):
-        return ", ".join([s.child_name for s in obj.students.all()])
-    student_name.short_description = '生徒氏名'
+    def student_names(self, obj):
+        return ", ".join(s.child_name for s in obj.students.all())
+    student_names.short_description = '生徒氏名'
+
 
 # =========================
 # メッセージモデル
+# =========================
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
     list_display = ('id', 'sender_name', 'receiver_name', 'content_snippet', 'timestamp')
@@ -83,10 +113,10 @@ class MessageAdmin(admin.ModelAdmin):
         return obj.content[:30] + ("..." if len(obj.content) > 30 else "")
     content_snippet.short_description = '内容'
 
+
 # =========================
 # 出欠モデル
 # =========================
-
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
     list_display = ('id', 'student_name', 'date', 'status', 'time')
@@ -95,7 +125,6 @@ class AttendanceAdmin(admin.ModelAdmin):
     ordering = ('-date',)
     list_per_page = 20
 
-    # student_name を表示
     def student_name(self, obj):
         return obj.student.child_name
     student_name.admin_order_field = 'student__child_name'

@@ -1,14 +1,16 @@
 from django.db import models
 from django.utils import timezone
-from multiselectfield import MultiSelectField
- 
-#保護者
+
+
+# =========================
+# 保護者
+# =========================
 class Parent(models.Model):
     login_id = models.EmailField(
         max_length=100, unique=True, verbose_name="ログインID(メールアドレス)"
     )
     qr_code = models.ImageField(
-        upload_to='qr_codes/', blank=True, null=True , verbose_name="QRコード画像"
+        upload_to='qr_codes/', blank=True, null=True, verbose_name="QRコード画像"
     )
     user_type = models.CharField(
         max_length=10, default='parent', verbose_name="ユーザータイプ"
@@ -22,33 +24,24 @@ class Parent(models.Model):
     phone = models.CharField(
         max_length=20, blank=True, null=True, verbose_name="電話番号"
     )
- 
-#生徒
+
+    def __str__(self):
+        return self.name
+
+
+# =========================
+# 生徒
+# =========================
 class Student(models.Model):
-    parent = models.ForeignKey(Parent, null=True, blank=True, on_delete=models.SET_NULL)
-    
+    parent = models.ForeignKey(
+        Parent, null=True, blank=True, on_delete=models.SET_NULL
+    )
+
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
         ('その他', 'その他'),
     ]
-
-    DAYS_OF_WEEK = [
-        ('Mon', '月曜日'),
-        ('Tue', '火曜日'),
-        ('Wed', '水曜日'),
-        ('Thu', '木曜日'),
-        ('Fri', '金曜日'),
-        ('Sat', '土曜日'),
-        ('Sun', '日曜日'),
-    ]
-
-    default_attendance_days = MultiSelectField(
-        max_length=50,
-        choices=DAYS_OF_WEEK,
-        verbose_name="基本の出席曜日",
-        default=[],
-    )
 
     user_type = models.CharField(
         max_length=10, default='student', verbose_name="ユーザータイプ"
@@ -77,32 +70,75 @@ class Student(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, verbose_name="更新日時"
     )
- 
+
     class Meta:
         db_table = 'students'
         verbose_name = "生徒"
         verbose_name_plural = "生徒一覧"
- 
+
     def __str__(self):
-        return f"{self.child_name} parent: {self.parent.name}"
- 
-#講師
+        return self.child_name
+
+
+# =========================
+# ★ 基本出席ルール（曜日＋時間）
+# =========================
+class StudentAttendanceRule(models.Model):
+    DAYS_OF_WEEK = [
+        ('Mon', '月曜日'),
+        ('Tue', '火曜日'),
+        ('Wed', '水曜日'),
+        ('Thu', '木曜日'),
+        ('Fri', '金曜日'),
+        ('Sat', '土曜日'),
+        ('Sun', '日曜日'),
+    ]
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="attendance_rules",
+        verbose_name="生徒"
+    )
+
+    day_of_week = models.CharField(
+        max_length=3,
+        choices=DAYS_OF_WEEK,
+        verbose_name="出席曜日"
+    )
+
+    start_time = models.TimeField(verbose_name="開始時刻")
+    end_time = models.TimeField(verbose_name="終了時刻")
+
+    class Meta:
+        unique_together = ("student", "day_of_week")
+        verbose_name = "基本出席ルール"
+        verbose_name_plural = "基本出席ルール"
+
+    def __str__(self):
+        return f"{self.student.child_name} {self.get_day_of_week_display()} {self.start_time}-{self.end_time}"
+
+
+# =========================
+# 講師
+# =========================
 class Teacher(models.Model):
     user_type = models.CharField(
         max_length=10, default='teacher', verbose_name="ユーザータイプ"
     )
+
     GENDER_CHOICES = [
         ('男', '男'),
         ('女', '女'),
         ('その他', 'その他'),
     ]
- 
+
     PERMISSION_CHOICES = [
         ('一般講師', '一般講師'),
         ('主任講師', '主任講師'),
         ('管理者', '管理者'),
     ]
- 
+
     login_id = models.EmailField(
         max_length=100, unique=True, verbose_name="ログインID"
     )
@@ -133,15 +169,19 @@ class Teacher(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, verbose_name="更新日時"
     )
- 
+
     class Meta:
         db_table = 'teachers'
         verbose_name = "講師"
         verbose_name_plural = "講師一覧"
- 
+
     def __str__(self):
         return f"{self.name} ({self.permission_level})"
- 
+
+
+# =========================
+# 授業スケジュール（振替・特別授業）
+# =========================
 class Schedule(models.Model):
     STATUS_CHOICES = [
         ('予定', '予定'),
@@ -150,79 +190,52 @@ class Schedule(models.Model):
         ('振替', '振替'),
         ('中止', '中止'),
     ]
- 
+
     date = models.DateField(verbose_name="授業日")
     start_time = models.TimeField(verbose_name="開始時刻")
     end_time = models.TimeField(verbose_name="終了時刻")
- 
+
     teacher = models.ForeignKey(
         Teacher,
         on_delete=models.CASCADE,
         verbose_name="担当講師",
         related_name="schedules"
     )
-    # ★★★ 変更①：生徒を複数選択できるように ManyToManyField に変更 ★★★
-    # ★★★ 変更②：ManyToManyField には on_delete は書かないので削除 ★★★
+
     students = models.ManyToManyField(
         Student,
-        verbose_name="生徒（複数）",      # ← 表示名も複数に変更
+        verbose_name="生徒（複数）",
         related_name="schedules"
     )
- 
+
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
         default='予定',
         verbose_name="ステータス"
     )
- 
+
+    # 振替元の日付（必要なら将来使用）
+    original_date = models.DateField(
+        null=True, blank=True, verbose_name="振替元日"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="登録日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
- 
+
     class Meta:
         db_table = "schedule"
         verbose_name = "授業スケジュール"
         verbose_name_plural = "授業スケジュール一覧"
-    # ★★★ 変更③：複数生徒の名前をカンマ区切りで表示できるように修正 ★★★
+
     def __str__(self):
         student_names = ", ".join(s.child_name for s in self.students.all())
-        return f"{self.date} {self.start_time}-{self.end_time} / {self.teacher} -> {student_names}"
+        return f"{self.date} {self.start_time}-{self.end_time} / {student_names} ({self.status})"
 
-class Message(models.Model):
-    # 送信者
-    parent_sender = models.ForeignKey(
-        Parent, related_name='sent_messages', on_delete=models.CASCADE, blank=True, null=True
-    )
-    teacher_sender = models.ForeignKey(
-        Teacher, related_name='sent_messages', on_delete=models.CASCADE, blank=True, null=True
-    )
- 
-    # 受信者
-    parent_receiver = models.ForeignKey(
-        Parent, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
-    )
-    teacher_receiver = models.ForeignKey(
-        Teacher, related_name='received_messages', on_delete=models.CASCADE, blank=True, null=True
-    )
- 
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
- 
-    def __str__(self):
-        sender = self.parent_sender or self.teacher_sender
-        receiver = self.parent_receiver or self.teacher_receiver
-        return f"{sender} → {receiver}: {self.content[:20]}"
-    
-#お知らせ一覧
-class Notice(models.Model):
-    title = models.CharField(max_length=200)
-    content = models.TextField()
-    date = models.DateField(auto_now_add=True)
-    sender = models.ForeignKey(Teacher, on_delete=models.CASCADE)
 
-    def __str__(self):
-        return f"{self.title}（{self.date}）"
-    
+# =========================
+# 出席記録
+# =========================
 class Attendance(models.Model):
     STATUS_CHOICES = [
         ('present', '出席'),
@@ -234,10 +247,56 @@ class Attendance(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     date = models.DateField(default=timezone.now)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='present')
-    time = models.TimeField(auto_now_add=True)  # 出席打刻時刻（QRの時間）
+    time = models.TimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('student', 'date')  # 同じ日に二重登録を防ぐ
+        unique_together = ('student', 'date')
+        verbose_name = "出席記録"
+        verbose_name_plural = "出席記録"
 
     def __str__(self):
-        return f"{self.student.child_name} - {self.date} - {self.status}"
+        return f"{self.student.child_name} - {self.date} - {self.get_status_display()}"
+
+
+# =========================
+# メッセージ（チャット）
+# =========================
+class Message(models.Model):
+    parent_sender = models.ForeignKey(
+        Parent, related_name='sent_messages',
+        on_delete=models.CASCADE, blank=True, null=True
+    )
+    teacher_sender = models.ForeignKey(
+        Teacher, related_name='sent_messages',
+        on_delete=models.CASCADE, blank=True, null=True
+    )
+
+    parent_receiver = models.ForeignKey(
+        Parent, related_name='received_messages',
+        on_delete=models.CASCADE, blank=True, null=True
+    )
+    teacher_receiver = models.ForeignKey(
+        Teacher, related_name='received_messages',
+        on_delete=models.CASCADE, blank=True, null=True
+    )
+
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        sender = self.parent_sender or self.teacher_sender
+        receiver = self.parent_receiver or self.teacher_receiver
+        return f"{sender} → {receiver}: {self.content[:20]}"
+
+
+# =========================
+# お知らせ
+# =========================
+class Notice(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    date = models.DateField(auto_now_add=True)
+    sender = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.title}（{self.date}）"

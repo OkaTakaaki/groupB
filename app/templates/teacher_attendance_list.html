@@ -6,6 +6,7 @@
 
 <h2 style="margin-bottom: 20px;">本日の出席状況</h2>
 
+<!-- ================== 今日の出席予定者 ================== -->
 <div style="background:#f0f4ff; padding:15px; border-radius:10px; margin-bottom:25px;">
     <h3 style="margin-top:0;">【今日の出席予定者】</h3>
 
@@ -29,7 +30,43 @@
     {% endif %}
 </div>
 
+<!-- ================== 本日の振替出席者 ================== -->
+<div style="background:#fffbea; padding:15px; border-radius:10px; margin-bottom:25px;">
+    <h3 style="margin-top:0;">【本日の振替出席者】</h3>
 
+    {% if transfer_students %}
+        <ul style="list-style:none; padding:0;">
+            {% for item in transfer_students %}
+            <li style="background:white; padding:10px; margin:8px 0; border-radius:10px;
+                       display:flex; justify-content:space-between; border:1px solid #ffe8a3;">
+                <span>
+                    {{ item.student.child_name }}
+                    <span style="
+                        margin-left:10px;
+                        padding:4px 10px;
+                        background:#fff3cd;
+                        border:1px solid #ffeeba;
+                        border-radius:8px;
+                        font-size:14px;
+                        font-weight:bold;
+                        color:#856404;
+                    ">
+                        🕒 {{ item.start_time|time:"H:i" }} ～ {{ item.end_time|time:"H:i" }}
+                    </span>
+                </span>
+
+                <span style="color:#e67e22; font-weight:bold;">
+                     振替
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>本日の振替出席者はいません。</p>
+    {% endif %}
+</div>
+
+<!-- ================== 今日の出席者 ================== -->
 <div style="background:#fff5f5; padding:15px; border-radius:10px;">
     <h3 style="margin-top:0;">【今日の出席者】</h3>
 
@@ -48,7 +85,7 @@
     {% endif %}
 </div>
 
-<!-- 出席登録へ -->
+<!-- ================== QRボタン ================== -->
 <a href="{% url 'app:qr_page' %}"
    style="display:flex; flex-direction:column; align-items:center;
           background:#5C82B8; color:white; padding:12px; border-radius:12px;

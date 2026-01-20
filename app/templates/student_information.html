@@ -68,6 +68,7 @@ td {
 <table>
     <tr>
         <th>名前</th>
+        <th style="width:120px; text-align:center;">保護者氏名</th>
         <th style="width:120px; text-align:center;">電話番号</th>
         <th style="width:120px; text-align:center;">QRコード</th>
         <th style="width:120px; text-align:center;">操作</th>
@@ -79,6 +80,17 @@ td {
         <td>
             <div class="student-name" onclick="toggleInfo('{{ student.id }}')">
                 {{ student.child_name }}
+            </div>
+        </td>
+
+        <!-- 保護者氏名 -->
+        <td style="text-align:center;">
+            <div id="parent{{ student.id }}" class="phone">
+                {% if student.parent %}
+                    {{ student.parent.name }}
+                {% else %}
+                    未登録
+                {% endif %}
             </div>
         </td>
 
@@ -96,23 +108,23 @@ td {
         <!-- QRコード -->
         <td style="text-align:center;">
             {% if student.parent and student.parent.qr_code %}
-                <img id="qr{{ student.parent.id }}" class="qr-code"
-                    src="{{ student.parent.qr_code.url }}"
-                    alt="QRコード"
-                    style="width:80px; height:80px;">
+                <img id="qr{{ student.id }}" class="qr-code"
+                     src="{{ student.parent.qr_code.url }}"
+                     alt="QRコード"
+                     style="width:80px; height:80px;">
             {% else %}
                 <span style="color:#999;">なし</span>
             {% endif %}
         </td>
 
-        <!-- 操作（チャット） -->
+        <!-- 操作 -->
         <td style="text-align:center;">
             <a href="{% url 'app:mail_detail' student.id %}" class="chat-button">チャットへ</a>
         </td>
     </tr>
     {% empty %}
     <tr>
-        <td colspan="4" style="text-align:center; color:#888; font-style:italic;">
+        <td colspan="5" style="text-align:center; color:#888; font-style:italic;">
             生徒はいません。
         </td>
     </tr>
@@ -121,22 +133,24 @@ td {
 
 <script>
 function toggleInfo(id) {
-    const phone = document.getElementById("phone" + id);
-    const qr = document.getElementById("qr" + id);
 
-    // 電話番号 ON/OFF
-    if (phone) {
-        phone.style.display = (phone.style.display === "none" || phone.style.display === "") 
-            ? "block" 
-            : "none";
-    }
+    // ① 全員の情報を一旦閉じる
+    document.querySelectorAll(".phone").forEach(el => {
+        el.style.display = "none";
+    });
 
-    // QRコード ON/OFF
-    if (qr) {
-        qr.style.display = (qr.style.display === "none" || qr.style.display === "") 
-            ? "block" 
-            : "none";
-    }
+    document.querySelectorAll(".qr-code").forEach(el => {
+        el.style.display = "none";
+    });
+
+    // ② 押された人だけ表示
+    const parent = document.getElementById("parent" + id);
+    const phone  = document.getElementById("phone" + id);
+    const qr     = document.getElementById("qr" + id);
+
+    if (parent) parent.style.display = "block";
+    if (phone)  phone.style.display  = "block";
+    if (qr)     qr.style.display     = "block";
 }
 </script>
 

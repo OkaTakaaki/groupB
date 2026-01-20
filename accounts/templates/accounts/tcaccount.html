@@ -80,7 +80,16 @@ button:hover {
 
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
+
+        <p>{{ form.login_id.label_tag }} {{ form.login_id }}</p>
+        <p>{{ form.password.label_tag }} {{ form.password }}</p>
+        <p>{{ form.name.label_tag }} {{ form.name }}</p>
+        <p>{{ form.name_kana.label_tag }} {{ form.name_kana }}</p>
+        <p>{{ form.birth_date.label_tag }} {{ form.birth_date }}</p>
+        <p>{{ form.gender.label_tag }} {{ form.gender }}</p>
+        <p>{{ form.phone.label_tag }} {{ form.phone }}</p>
+        <p>{{ form.permission_level.label_tag }} {{ form.permission_level }}</p>
+
         <button type="submit">登録する</button>
     </form>
 </div>

@@ -7,6 +7,7 @@
     <title>チャット画面</title>
     <link rel="stylesheet" href="{% static 'chat.css' %}">
 </head>
+
 <body>
     <div class="chat-container">
 
@@ -41,7 +42,7 @@
             <div class="chat-area">
                 {% if selected_user %}
                     <div class="chat-header">
-                        <h3>{{ selected_user.username }} さん</h3>
+                        <h2>{{ selected_user.username }} さん</h2>
                     </div>
 
                     <div class="chat-messages">

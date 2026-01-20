@@ -26,7 +26,7 @@
         <tr>
             <td>{{ student.id }}</td>
             <td>{{ student.child_name }}</td>
-            <td>{{ student.parent_name }}</td>
+            <td>{{ student.parent.name }}</td>
             <td>
                 <a href="{% url 'seaccount' student.id %}" class="edit-btn">編集</a>
             </td>
