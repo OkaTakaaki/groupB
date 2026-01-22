@@ -10,14 +10,30 @@
 <div style="background:#f0f4ff; padding:15px; border-radius:10px; margin-bottom:25px;">
     <h3 style="margin-top:0;">【今日の出席予定者】</h3>
 
-    {% if scheduled_students %}
+    {% if rules_today %}
         <ul style="list-style:none; padding:0;">
-            {% for s in scheduled_students %}
+            {% for rule in rules_today %}
             <li style="background:white; padding:10px; margin:8px 0; border-radius:10px;
-                       display:flex; justify-content:space-between; border:1px solid #dce6ff;">
-                <span>{{ s.child_name }}</span>
+                    display:flex; justify-content:space-between; border:1px solid #dce6ff;">
+                <span>
+                    {{ rule.student.child_name }}
 
-                {% if s.id in attended_ids %}
+                    <span style="
+                        margin-left:10px;
+                        padding:4px 10px;
+                        background:#e8f0ff;
+                        border:1px solid #cddcff;
+                        border-radius:8px;
+                        font-size:13px;
+                        font-weight:bold;
+                    ">
+                        🕒 {{ rule.time_slot.name }}
+                        ({{ rule.time_slot.start_time|time:"H:i" }}～
+                        {{ rule.time_slot.end_time|time:"H:i" }})
+                    </span>
+                </span>
+
+                {% if rule.student.id in attended_ids %}
                     <span style="color:green; font-weight:bold;">✔ 出席済</span>
                 {% else %}
                     <span style="color:#999;">未出席</span>
@@ -28,6 +44,7 @@
     {% else %}
         <p>本日の出席予定者はいません。</p>
     {% endif %}
+
 </div>
 
 <!-- ================== 本日の振替出席者 ================== -->

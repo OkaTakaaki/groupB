@@ -13,11 +13,12 @@ from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.db.models import Q
+from django import forms
 
 # Local Imports
 from .models import (
     Schedule, Student, Parent, Teacher,
-    Message, Attendance, Notice, StudentAttendanceRule
+    Message, Notice, StudentAttendanceRule, Attendance, TimeSlot
 )
 from .forms import ScheduleForm, MessageForm
 
@@ -247,7 +248,8 @@ class CalendarDayView(View):
             date=target_date
         ).select_related("teacher").prefetch_related("students").order_by("start_time")
 
-        hours = list(range(24))
+        # TimeSlot を取得
+        time_slots = TimeSlot.objects.all().order_by("start_time")
 
         prev_day = target_date - timedelta(days=1)
         next_day = target_date + timedelta(days=1)
@@ -255,7 +257,7 @@ class CalendarDayView(View):
         context = {
             "target_date": target_date,
             "schedules": schedules,
-            "hours": hours,
+            "time_slots": time_slots,
             "prev_day_url": reverse_lazy("app:calendar_day",
                                          kwargs={"year": prev_day.year, "month": prev_day.month, "day": prev_day.day}),
             "next_day_url": reverse_lazy("app:calendar_day",
@@ -361,20 +363,35 @@ def qr_attendance(request):
         return JsonResponse({"status": "error", "message": "未登録ユーザーです"})
 
     today = timezone.now().date()
+    weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    today_week = weekday_map[timezone.now().weekday()]
+
+    # ✅ 今日の曜日のルールを取得
+    rule = StudentAttendanceRule.objects.filter(
+        student=student,
+        day_of_week=today_week
+    ).select_related("time_slot").first()
 
     attendance, created = Attendance.objects.get_or_create(
         student=student,
         date=today,
-        defaults={"status": "present"}
+        defaults={
+            "status": "present",
+            "time_slot": rule.time_slot if rule else None
+        }
     )
 
     if not created:
         attendance.status = "present"
+        # 既存データに time_slot が無ければ補完
+        if not attendance.time_slot and rule:
+            attendance.time_slot = rule.time_slot
         attendance.save()
 
     return JsonResponse({
         "status": "success",
         "student": student.child_name,
+        "time_slot": str(attendance.time_slot) if attendance.time_slot else "未設定",
         "message": "出席登録しました"
     })
 
@@ -390,9 +407,13 @@ def attendance_today(request):
     weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     today_week = weekday_map[timezone.now().weekday()]
 
-    scheduled_students = Student.objects.filter(
-        attendance_rules__day_of_week=today_week
-    ).distinct()
+    rules_today = StudentAttendanceRule.objects.select_related(
+        "student",
+        "time_slot"
+    ).filter(
+        day_of_week=today_week
+    ).order_by("time_slot__start_time")
+
 
     transfer_schedules = Schedule.objects.filter(
         date=today,
@@ -413,12 +434,13 @@ def attendance_today(request):
     attended_ids = set(attendances.values_list('student_id', flat=True))
 
     return render(request, "teacher_attendance_list.html", {
-        "scheduled_students": scheduled_students,
-        "transfer_students": transfer_students,
-        "attendances": attendances,
-        "attended_ids": attended_ids,
-        "today": today,
-    })
+    "rules_today": rules_today,
+    "transfer_students": transfer_students,
+    "attendances": attendances,
+    "attended_ids": attended_ids,
+    "today": today,
+})
+
 
 
 # ===============================
@@ -449,3 +471,34 @@ def verify_password(request):
         return JsonResponse({"status": "success"})
     else:
         return JsonResponse({"status": "fail"})
+
+# =========================
+# 時間帯モデル 
+#========================
+class TimeSlotForm(forms.ModelForm):
+    class Meta:
+        model = TimeSlot
+        fields = ["name", "start_time", "end_time"]
+        widgets = {
+            "start_time": forms.TimeInput(attrs={"type": "time"}),
+            "end_time": forms.TimeInput(attrs={"type": "time"}),
+        }
+
+def timeslot_create(request):
+    if request.method == "POST":
+        form = TimeSlotForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("app:timeslot_list")   # 登録後一覧へ
+    else:
+        form = TimeSlotForm()
+
+    return render(request, "app/timeslot_form.html", {
+        "form": form
+    })
+
+def timeslot_list(request):
+    timeslots = TimeSlot.objects.all().order_by("start_time")
+    return render(request, "app/timeslot_list.html", {
+        "timeslots": timeslots
+    })

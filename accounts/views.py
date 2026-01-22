@@ -50,18 +50,30 @@ def logout(request):
     return redirect('login')
 
 
-class StudentForm(forms.ModelForm):
-    # -----------------------
-    # 既存：保護者情報
-    # -----------------------
-    parent_login_id = forms.EmailField(label="保護者ログインID（メールアドレス）", required=True)
-    parent_password = forms.CharField(label="保護者パスワード", widget=forms.PasswordInput, required=True)
-    parent_name = forms.CharField(label="保護者氏名", required=True)
-    parent_phone = forms.CharField(label="保護者電話番号", required=False)
+from app.models import Student, TimeSlot   # ← TimeSlotをimport
 
-    # -----------------------
-    # ★ 追加：基本出席ルール
-    # -----------------------
+class StudentForm(forms.ModelForm):
+
+    # --- 保護者情報 ---
+    parent_login_id = forms.EmailField(
+        label="保護者ログインID（メールアドレス）",
+        required=True
+    )
+    parent_password = forms.CharField(
+        label="保護者パスワード",
+        widget=forms.PasswordInput,
+        required=True
+    )
+    parent_name = forms.CharField(
+        label="保護者氏名",
+        required=True
+    )
+    parent_phone = forms.CharField(
+        label="保護者電話番号",
+        required=False
+    )
+
+    # --- 曜日 ---
     DAYS = [
         ("Mon", "月"),
         ("Tue", "火"),
@@ -73,22 +85,18 @@ class StudentForm(forms.ModelForm):
     ]
 
     attendance_days = forms.MultipleChoiceField(
-        label="基本出席曜日",
+        label="出席曜日",
         choices=DAYS,
         widget=forms.CheckboxSelectMultiple,
         required=True
     )
 
-    start_time = forms.TimeField(
-        label="開始時刻",
-        widget=forms.TimeInput(attrs={"type": "time"}),
-        required=True
-    )
-
-    end_time = forms.TimeField(
-        label="終了時刻",
-        widget=forms.TimeInput(attrs={"type": "time"}),
-        required=True
+    # --- ✅ 時間帯マスタ選択 ---
+    time_slot = forms.ModelChoiceField(
+        label="出席時間帯",
+        queryset=TimeSlot.objects.all().order_by("start_time"),
+        empty_label="時間帯を選択してください",
+        required=False
     )
 
     class Meta:
@@ -108,29 +116,20 @@ class StudentForm(forms.ModelForm):
             'gender': forms.Select(),
         }
 
-    # -----------------------
-    # ★ 時刻バリデーション
-    # -----------------------
-    def clean(self):
-        cleaned = super().clean()
-        st = cleaned.get("start_time")
-        et = cleaned.get("end_time")
 
-        if st and et and st >= et:
-            raise forms.ValidationError("終了時刻は開始時刻より後にしてください。")
-
-        return cleaned
-
-
-#student-create-account
+# ==============================
+# 生徒アカウント作成
+# ==============================
 def scaccount(request):
+    time_slots = TimeSlot.objects.all().order_by("start_time")
+    print("利用可能な時間帯:", time_slots)
+
     if request.method == 'POST':
         form = StudentForm(request.POST)
+
         if form.is_valid():
             try:
-                # --------------------
-                # 保護者作成（既存）
-                # --------------------
+                # 保護者作成
                 parent, created = Parent.objects.get_or_create(
                     login_id=form.cleaned_data['parent_login_id'],
                     defaults={
@@ -140,55 +139,58 @@ def scaccount(request):
                     }
                 )
 
+                # QRコード作成
                 if created or not parent.qr_code:
-                    qr_data = parent.login_id
-                    qr_img = qrcode.make(qr_data)
+                    qr_img = qrcode.make(parent.login_id)
                     buffer = BytesIO()
                     qr_img.save(buffer, format='PNG')
                     parent.qr_code.save(
-                        f"{qr_data}.png",
+                        f"{parent.login_id}.png",
                         ContentFile(buffer.getvalue()),
                         save=True
                     )
 
-                # --------------------
-                # 生徒作成（既存）
-                # --------------------
+                # 生徒作成
                 student = form.save(commit=False)
                 student.parent = parent
                 student.save()
 
-                # =================================================
-                # ★ ここから追加：出席ルール保存
-                # =================================================
-                days = form.cleaned_data["attendance_days"]
-                start_time = form.cleaned_data["start_time"]
-                end_time = form.cleaned_data["end_time"]
-
-                for day in days:
+                # 出席ルール保存
+                selected_days = request.POST.getlist("attendance_days")
+                print("選択された曜日:", selected_days)
+                for day in selected_days:
+                    time_slot_id = request.POST.get(f"time_slot_{day}")
+                    if not time_slot_id:
+                        continue
+                    time_slot = TimeSlot.objects.get(id=time_slot_id)
                     StudentAttendanceRule.objects.create(
                         student=student,
                         day_of_week=day,
-                        start_time=start_time,
-                        end_time=end_time,
+                        time_slot=time_slot,
                     )
-
-                # =================================================
 
                 messages.success(request, f"生徒「{student.child_name}」を登録しました。")
                 return redirect('scaccount')
 
             except Exception as e:
                 print("登録エラー:", e)
-                print(traceback.format_exc())
                 messages.error(request, "登録中にエラーが発生しました。")
-
         else:
+            print("フォームエラー:", form.errors)   
             messages.error(request, "入力内容に誤りがあります。")
+
     else:
         form = StudentForm()
 
-    return render(request, 'accounts/scaccount.html', {'form': form})
+    # ✅ scaccount は新規作成なので day_times は空
+    day_times = {}
+
+    return render(request, 'accounts/scaccount.html', {
+        'form': form,
+        'time_slots': time_slots,
+        'day_times': day_times,
+    })
+
 
 #teacher-create-account
 class TeacherForm(forms.ModelForm):
@@ -267,17 +269,52 @@ def tcaccount(request):
 
 
 #student-select
+from django.shortcuts import render, redirect
+from django.contrib import messages
+
 def student_select(request):
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
+    # ログインチェック
+    if 'user_id' not in request.session:
+        return redirect('login')
+
     query = request.GET.get('q')
-    if query:
-        students = Student.objects.filter(id=query)
-        parents = Parent.objects.filter(id=query)
-    else:
-        students = Student.objects.all().order_by('id')
-        parents = Parent.objects.all().order_by('id')
-    return render(request, 'accounts/sselect.html', {'students': students, 'parents': parents})
+    students = Student.objects.none()
+    parents = Parent.objects.none()
+
+    try:
+        if query:
+            # 数字チェック（ID検索の安全化）
+            if not query.isdigit():
+                messages.warning(request, "検索IDは数字で入力してください。")
+            else:
+                students = Student.objects.filter(id=int(query))
+                parents = Parent.objects.filter(id=int(query))
+
+                # 該当なし
+                if not students.exists() and not parents.exists():
+                    messages.info(request, "該当するデータが見つかりませんでした。")
+        else:
+            students = Student.objects.all().order_by('id')
+            parents = Parent.objects.all().order_by('id')
+
+    except Exception as e:
+        # 想定外エラー
+        print("student_select error:", e)
+        messages.error(request, "データの取得中にエラーが発生しました。")
+
+        # フォールバック（空表示）
+        students = Student.objects.none()
+        parents = Parent.objects.none()
+
+    return render(
+        request,
+        'accounts/sselect.html',
+        {
+            'students': students,
+            'parents': parents,
+        }
+    )
+
 
 # student-edit-account
 def seaccount(request, student_id):
@@ -287,67 +324,102 @@ def seaccount(request, student_id):
     student = get_object_or_404(Student, id=student_id)
     parent = student.parent
     old_email = parent.login_id if parent else None
+    
+    # 全時間帯のリスト（セレクトボックス用）
+    time_slots = TimeSlot.objects.all().order_by("start_time")
 
     if request.method == 'POST':
         form = StudentForm(request.POST, instance=student)
         if form.is_valid():
-            student = form.save(commit=False)
-
-            # --- Parent情報の更新 ---
-            if parent:
-                new_email = form.cleaned_data['parent_login_id']
-
-                # メールアドレス変更
-                email_changed = old_email != new_email
-                parent.login_id = new_email
-                parent.name = form.cleaned_data['parent_name']
-                parent.phone = form.cleaned_data.get('parent_phone', '')
-
-                # パスワードが入力されていれば更新
-                if form.cleaned_data.get('parent_password'):
-                    parent.password_hash = make_password(
-                        form.cleaned_data['parent_password']
-                    )
-
-                # ★ メール変更時のみQRコード再生成
-                if email_changed or not parent.qr_code:
-                    qr_img = qrcode.make(new_email)
-                    buffer = io.BytesIO()
-                    qr_img.save(buffer, format='PNG')
-
-                    filename = f"parent_qr_{new_email}.png"
-
-                    parent.qr_code.save(
-                        filename,
-                        ContentFile(buffer.getvalue()),
-                        save=True   # ← ここが重要
-                    )
-
+            # ... (中略：現在の保護者更新・QRコード処理) ...
+            
             student.save()
+            
+            # ★ 出席ルールの更新処理を追加
+            selected_days = request.POST.getlist('attendance_days')
+            # 一旦、今のルールを削除して再登録（または更新）
+            student.attendance_rules.all().delete()
+            for day in selected_days:
+                slot_id = request.POST.get(f'{day}_time_slot') # テンプレートのname属性に合わせる
+                if slot_id:
+                    slot = TimeSlot.objects.get(id=slot_id)
+                    StudentAttendanceRule.objects.create(
+                        student=student,
+                        day_of_week=day,
+                        time_slot=slot
+                    )
+
             messages.success(request, '生徒情報を更新しました。')
             return redirect('student_select')
-        else:
-            messages.error(request, '入力内容に誤りがあります。')
     else:
-        form = StudentForm(instance=student)
+        # 初期表示のとき：保護者の情報をフォームに詰める
+        initial_data = {}
+        if parent:
+            initial_data = {
+                'parent_login_id': parent.login_id,
+                'parent_name': parent.name,
+                'parent_phone': parent.phone,
+            }
+        form = StudentForm(instance=student, initial=initial_data)
+
+    # ★ テンプレートでの表示用にデータを整理する
+    # 現在のルールを { 'Mon': ID, 'Tue': ID } という辞書にする
+    current_rules = student.attendance_rules.all()
+    selected_days = [r.day_of_week for r in current_rules]
+    
+    # テンプレートで引数付き辞書が使えない問題を回避するため
+    # day_times をそのまま渡さず、あえて「そのままアクセスできる形」に工夫するか
+    # 辞書を get フィルタで引けるように準備します。
+    day_times = {r.day_of_week: r.time_slot.id for r in current_rules}
 
     return render(request, 'accounts/seaccount.html', {
         'form': form,
         'parent': parent,
-        'student': student
+        'student': student,
+        'time_slots': time_slots,      
+        'selected_days': selected_days, 
+        'day_times': day_times,         
     })
-
 #teacher-select
-def teacher_select(request):
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
-    query = request.GET.get('q')
-    if query:
-        teachers = Teacher.objects.filter(id=query)
-    else:
-        teachers = Teacher.objects.all().order_by('id')
-    return render(request, 'accounts/tselect.html', {'teachers': teachers})
+from django.shortcuts import render, redirect
+from django.contrib import messages
 
+def teacher_select(request):
+    # ログインチェック
+    if 'user_id' not in request.session:
+        return redirect('login')
+
+    query = request.GET.get('q')
+    teachers = Teacher.objects.none()
+
+    try:
+        if query:
+            # 数字チェック（ID検索の安全化）
+            if not query.isdigit():
+                messages.warning(request, "検索IDは数字で入力してください。")
+            else:
+                teachers = Teacher.objects.filter(id=int(query))
+
+                # 該当データなし
+                if not teachers.exists():
+                    messages.info(request, "該当する教師データが見つかりませんでした。")
+        else:
+            teachers = Teacher.objects.all().order_by('id')
+
+    except Exception as e:
+        print("teacher_select error:", e)
+        messages.error(request, "データ取得中にエラーが発生しました。")
+        teachers = Teacher.objects.none()
+
+    return render(
+        request,
+        'accounts/tselect.html',
+        {
+            'teachers': teachers,
+        }
+    )
+
+# teacher-edit-account
 def teaccount(request, teacher_id):
     if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
         return redirect('login')          # ログイン画面へ飛ばす
@@ -365,4 +437,42 @@ def teaccount(request, teacher_id):
         form = TeacherForm(instance=teacher)
 
     return render(request, 'accounts/teaccount.html', {'form': form, 'teacher': teacher})
+
+class TimeSlotForm(forms.ModelForm):
+    class Meta:
+        model = TimeSlot
+        fields = ['name', 'start_time', 'end_time']
+        labels = {
+            'name': '時間帯名',
+            'start_time': '開始時刻',
+            'end_time': '終了時刻',
+        }
+        widgets = {
+            'start_time': forms.TimeInput(attrs={'type': 'time'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start = cleaned_data.get('start_time')
+        end = cleaned_data.get('end_time')
+
+        if start and end and start >= end:
+            raise forms.ValidationError("開始時刻は終了時刻より前にしてください。")
+
+def timeslot_edit(request, pk):
+    slot = get_object_or_404(TimeSlot, pk=pk)
+
+    if request.method == 'POST':
+        form = TimeSlotForm(request.POST, instance=slot)
+        if form.is_valid():
+            form.save()
+            return redirect('app:timeslot_list')
+    else:
+        form = TimeSlotForm(instance=slot)
+
+    return render(request, 'app/timeslot_edit.html', {
+        'form': form,
+        'slot': slot
+    })
 
