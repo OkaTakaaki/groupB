@@ -99,9 +99,23 @@ def mail_list(request, user_type=None, user_id=None):
     else:
         current_user = get_object_or_404(Teacher, id=current_id)
 
+    selected_day = request.GET.get("day")
+
+    # 曜日一覧
+    weekdays = [
+        ("Mon", "月曜日"),
+        ("Tue", "火曜日"),
+        ("Wed", "水曜日"),
+        ("Thu", "木曜日"),
+        ("Fri", "金曜日"),
+        ("Sat", "土曜日"),
+        ("Sun", "日曜日"),
+    ]
+
     selected_user = None
     messages = []
 
+    # ===== チャット相手 =====
     if user_id:
         if current_type in ['student', 'parent']:
             selected_user = get_object_or_404(Teacher, id=user_id)
@@ -119,7 +133,7 @@ def mail_list(request, user_type=None, user_id=None):
                 Q(parent_sender=selected_user, teacher_receiver=current_user)
             ).order_by('timestamp')
 
-    # メッセージ送信
+    # ===== メッセージ送信 =====
     if request.method == 'POST' and selected_user:
         form = MessageForm(request.POST)
         if form.is_valid():
@@ -137,19 +151,22 @@ def mail_list(request, user_type=None, user_id=None):
     else:
         form = MessageForm()
 
-    # ユーザー一覧
-    query = request.GET.get('q', '')
+    # ===== 左サイドのユーザー一覧 =====
     if current_type in ['student', 'parent']:
+        # 生徒・保護者 → 講師一覧
         users = Teacher.objects.all()
-        if query:
-            users = users.filter(name__icontains=query)
     else:
-        users = Parent.objects.all()
-        if query:
-            users = users.filter(name__icontains=query)
+        # 講師 → 生徒一覧（曜日フィルタあり）
+        users = Student.objects.all()
+        if selected_day:
+            users = users.filter(
+                attendance_rules__day_of_week=selected_day
+            ).distinct()
 
     context = {
         'users': users,
+        'selected_day': selected_day,
+        'weekdays': weekdays,
         'selected_user': selected_user,
         'messages': messages,
         'form': form,
@@ -158,6 +175,7 @@ def mail_list(request, user_type=None, user_id=None):
     }
 
     return render(request, 'mail_list.html', context)
+
 
 
 def smenu_view(request):

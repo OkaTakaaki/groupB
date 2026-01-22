@@ -170,38 +170,54 @@
     }
 </style>
 
+
 <div class="mail-container">
-
-    <!-- 左：ユーザー一覧 -->
     <div class="sidebar">
+
+        <!-- 🔍 検索フォーム -->
         <form method="GET" action="" style="display:flex; gap:5px; margin-bottom:10px;">
-        <input type="text" name="q" placeholder="🔍 ユーザーを検索..." class="search-box" value="{{ request.GET.q }}">
-        <button type="submit" style="padding:5px 10px;">検索</button>
-        <button type="submit" name="q" value="" style="padding:5px 10px;">全件表示</button>
-    </form>
+            <input type="text" name="q" placeholder="🔍 ユーザーを検索..." class="search-box" value="{{ request.GET.q }}">
+            <button type="submit" style="padding:5px 10px;">検索</button>
+            <button type="submit" name="q" value="" style="padding:5px 10px;">全件表示</button>
+        </form>
 
-        {% for user in users %}
-        <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
-            <div class="user-icon">👤</div>
-            <span class="user-name">
-                {% if user.child_name %}
-                    {{ user.child_name }}
-                {% else %}
-                    {{ user.name }}
-                {% endif %}
-            </span>
-            {% if is_student %}
-                <span style="margin-left: auto; font-size: 12px; color: #555;">
-                    {{ user.permission_level }}
-                </span>
+        {% if not selected_day and not request.GET.q %}
+            <!-- ===== 曜日一覧 ===== -->
+            {% for d, label in weekdays %}
+                <a href="?day={{ d }}" class="user-item">
+                    <div class="user-icon">📅</div>
+                    <span class="user-name">{{ label }}</span>
+                </a>
+            {% endfor %}
+
+        {% else %}
+            <!-- ===== 生徒 / ユーザー一覧 ===== -->
+
+            {% if selected_day and not request.GET.q %}
+                <a href="?" style="display:block; margin-bottom:10px; font-size:13px;">
+                    ← 曜日選択に戻る
+                </a>
             {% endif %}
-        </a>
-    {% empty %}
-        <p>該当するユーザーがいません。</p>
-    {% endfor %}
 
+            {% for user in users %}
+                <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
+                    <div class="user-icon">👤</div>
+                    <span class="user-name">
+                        {% if user.child_name %}
+                            {{ user.child_name }}
+                        {% else %}
+                            {{ user.name }}
+                        {% endif %}
+                    </span>
+                </a>
+            {% empty %}
+                <p style="text-align:center;">該当するユーザーがいません</p>
+            {% endfor %}
+        {% endif %}
 
     </div>
+
+
 
     <!-- 右：チャット画面 -->
     <div class="chat-area">
@@ -216,12 +232,19 @@
 
             <div class="chat-messages">
                 {% for message in messages %}
-                    <div class="message {% if message.sender == current_user %}sent{% else %}received{% endif %}">
+                    <div class="message
+                        {% if message.parent_sender == current_user or message.teacher_sender == current_user %}
+                            sent
+                        {% else %}
+                            received
+                        {% endif %}
+                    ">
                         {{ message.content }}
                     </div>
                 {% empty %}
                     <p class="no-chat">メッセージはまだありません。</p>
                 {% endfor %}
+
             </div>
 
             <form method="POST" class="message-form">
