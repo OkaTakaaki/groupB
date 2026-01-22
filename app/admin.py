@@ -5,8 +5,9 @@ from .models import (
     Teacher,
     Schedule,
     Message,
-    Attendance,
+    TimeSlot,
     StudentAttendanceRule,
+    Attendance,
 )
 
 # =========================
@@ -59,13 +60,11 @@ class StudentAttendanceRuleAdmin(admin.ModelAdmin):
         'id',
         'student',
         'day_of_week',
-        'start_time',
-        'end_time',
+        'time_slot',   # ✅ ここだけ表示する
     )
     list_filter = ('day_of_week',)
     search_fields = ('student__child_name',)
     ordering = ('student', 'day_of_week')
-
 
 # =========================
 # 講師モデル
@@ -115,17 +114,18 @@ class MessageAdmin(admin.ModelAdmin):
 
 
 # =========================
-# 出欠モデル
+# タイムスロットモデル
+# =========================
+@admin.register(TimeSlot)
+class TimeSlotAdmin(admin.ModelAdmin):
+    list_display = ("name", "start_time", "end_time")
+
+# =========================
+# 出席記録モデル   
 # =========================
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'student_name', 'date', 'status', 'time')
-    list_filter = ('status', 'date')
+    list_display = ('id', 'student', 'date', 'time_slot', 'status')
+    list_filter = ('date', 'status')
     search_fields = ('student__child_name',)
-    ordering = ('-date',)
-    list_per_page = 20
-
-    def student_name(self, obj):
-        return obj.student.child_name
-    student_name.admin_order_field = 'student__child_name'
-    student_name.short_description = '生徒氏名'
+    ordering = ('-date', 'student')

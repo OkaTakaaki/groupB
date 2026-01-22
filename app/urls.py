@@ -21,5 +21,6 @@ urlpatterns = [
     path("qr/", views.qr_page, name="qr_page"),
     path("qr/scan/", views.qr_attendance, name="qr_attendance"),
     path("verify-password/", views.verify_password, name="verify_password"),
-
+    path("timeslots/", views.timeslot_list, name="timeslot_list"),
+    path("timeslots/create/", views.timeslot_create, name="timeslot_create"),
 ] 

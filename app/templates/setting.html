@@ -88,7 +88,14 @@ body {
       <a href="{% url 'scaccount' %}" class="settings-item">
           <span class="icon">👥➕</span>
           <span>生徒アカウントの作成</span>
+    
       </a>
+      <a href="{% url 'app:timeslot_list' %}" class="settings-item">
+          <span class="icon">⏰</span>
+          <span>時間帯管理</span>
+      </a>
+
+      
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>
           <span>ログアウト</span>
@@ -111,6 +118,10 @@ body {
       <a href="{% url 'scaccount' %}" class="settings-item">
           <span class="icon">👥➕</span>
           <span>生徒アカウントの作成</span>
+      </a>
+      <a href="{% url 'app:timeslot_list' %}" class="settings-item">
+          <span class="icon">⏰</span>
+          <span>時間帯管理</span>
       </a>
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>

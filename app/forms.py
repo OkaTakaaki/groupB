@@ -1,7 +1,7 @@
 from .models import Message
 from django import forms
 from django.forms import DateInput
-from .models import Schedule, Teacher, Student
+from .models import Schedule, Teacher, Student, StudentAttendanceRule
 
 class MessageForm(forms.ModelForm):
     class Meta:

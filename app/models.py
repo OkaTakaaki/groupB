@@ -79,6 +79,44 @@ class Student(models.Model):
     def __str__(self):
         return self.child_name
 
+# =========================
+# ★ 時間帯モデル
+# =========================
+class TimeSlot(models.Model):
+    name = models.CharField("時間帯名", max_length=50)
+    start_time = models.TimeField("開始時刻")
+    end_time = models.TimeField("終了時刻")
+
+    class Meta:
+        db_table = "time_slots"
+        ordering = ["start_time"]
+
+    def __str__(self):
+        return f"{self.name} ({self.start_time.strftime('%H:%M')}–{self.end_time.strftime('%H:%M')})"
+
+# =========================
+# 出席記録
+# =========================
+class Attendance(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    date = models.DateField()
+
+    time_slot = models.ForeignKey(   # ← 追加
+        TimeSlot,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="時間帯"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("present", "出席"),
+            ("absent", "欠席"),
+        ]
+    )
+
 
 # =========================
 # ★ 基本出席ルール（曜日＋時間）
@@ -101,23 +139,25 @@ class StudentAttendanceRule(models.Model):
         verbose_name="生徒"
     )
 
+    time_slot = models.ForeignKey(
+    TimeSlot,
+    on_delete=models.PROTECT,
+    verbose_name="時間帯",
+    null=True,
+    blank=True
+    )
+
     day_of_week = models.CharField(
         max_length=3,
         choices=DAYS_OF_WEEK,
         verbose_name="出席曜日"
     )
 
-    start_time = models.TimeField(verbose_name="開始時刻")
-    end_time = models.TimeField(verbose_name="終了時刻")
-
     class Meta:
         unique_together = ("student", "day_of_week")
-        verbose_name = "基本出席ルール"
-        verbose_name_plural = "基本出席ルール"
 
     def __str__(self):
-        return f"{self.student.child_name} {self.get_day_of_week_display()} {self.start_time}-{self.end_time}"
-
+        return f"{self.student.child_name} {self.get_day_of_week_display()} {self.time_slot}"
 
 # =========================
 # 講師
@@ -231,32 +271,6 @@ class Schedule(models.Model):
     def __str__(self):
         student_names = ", ".join(s.child_name for s in self.students.all())
         return f"{self.date} {self.start_time}-{self.end_time} / {student_names} ({self.status})"
-
-
-# =========================
-# 出席記録
-# =========================
-class Attendance(models.Model):
-    STATUS_CHOICES = [
-        ('present', '出席'),
-        ('absent', '欠席'),
-        ('late', '遅刻'),
-        ('leave', '早退'),
-    ]
-
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    date = models.DateField(default=timezone.now)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='present')
-    time = models.TimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ('student', 'date')
-        verbose_name = "出席記録"
-        verbose_name_plural = "出席記録"
-
-    def __str__(self):
-        return f"{self.student.child_name} - {self.date} - {self.get_status_display()}"
-
 
 # =========================
 # メッセージ（チャット）
