@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}講師選択{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>講師情報編集</h2>
+    <p>編集したい講師を選択してください。</p>
+
+    <!-- 🔍 ID検索フォーム -->
+    <form method="get" class="search-form">
+        <input type="text" name="q" placeholder="IDを入力" value="{{ request.GET.q }}">
+        <button type="submit">検索</button>
+        {% if request.GET.q %}
+            <a href="{% url 'teacher_select' %}" class="reset-btn">リセット</a>
+        {% endif %}
+    </form>
+
+    <table class="teacher-table">
+        <tr>
+            <th>ID</th>
+            <th>氏名</th>
+            <th>権限</th>
+            <th>操作</th>
+        </tr>
+        {% for teacher in teachers %}
+        <tr>
+            <td>{{ teacher.id }}</td>
+            <td>{{ teacher.name }}</td>
+            <td>{{ teacher.permission_level }}</td>
+            <td>
+                <a href="{% url 'teaccount' teacher.id %}" class="edit-btn">編集</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">該当する講師はいません。</td></tr>
+        {% endfor %}
+    </table>
+</div>
+
+<style>
+.form-container {
+    max-width: 600px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+h2 {
+    text-align: center;
+    color: #5a82d1;
+}
+.search-form {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+.search-form input {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1em;
+    width: 150px;
+}
+.search-form button {
+    background-color: #5a82d1;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.search-form button:hover {
+    background-color: #3e66b3;
+}
+.reset-btn {
+    color: #5a82d1;
+    text-decoration: none;
+    padding: 8px;
+}
+.teacher-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.teacher-table th, .teacher-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
+}
+.edit-btn {
+    background-color: #5a82d1;
+    color: #fff;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+.edit-btn:hover {
+    background-color: #3e66b3;
+}
+</style>
+{% endblock %}

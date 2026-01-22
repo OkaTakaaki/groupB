@@ -1,0 +1,240 @@
+<h2 class="page-title">出席登録</h2>
+
+<div class="attendance-card">
+
+    <div class="button-row">
+        <button id="start-scan" class="btn primary">QRを読み取る</button>
+        <button onclick="openPasswordModal()" class="btn secondary">出席一覧へ</button>
+    </div>
+
+    <div id="reader"></div>
+    <div id="result-box"></div>
+</div>
+
+
+<!-- ===== パスワードモーダル ===== -->
+<div id="passwordModal" class="modal-overlay">
+    <div class="modal-card">
+        <h3>本人確認</h3>
+        <p>ログイン中のパスワードを入力してください</p>
+
+        <input
+            type="password"
+            id="passwordInput"
+            class="input"
+            placeholder="パスワード">
+
+        <div class="modal-buttons">
+            <button class="btn primary" onclick="submitPassword()">確認</button>
+            <button class="btn ghost" onclick="closePasswordModal()">キャンセル</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- html5-qrcode -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<style>
+/* ===============================
+   レイアウト
+================================ */
+.page-title {
+    text-align: center;
+    margin-bottom: 28px;
+    font-size: 28px;
+}
+
+.attendance-card {
+    max-width: 680px;          /* ← 大きく */
+    margin: auto;
+    padding: 36px;            /* ← 余白アップ */
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.10);
+}
+
+/* ボタン */
+.button-row {
+    display: flex;
+    gap: 18px;                /* ← 間隔アップ */
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 14px 28px;       /* ← 押しやすく */
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;          /* ← 文字大 */
+    transition: .2s;
+}
+
+#reader {
+    width: 360px;             /* ← QR表示拡大 */
+    margin: 28px auto;
+    display: none;
+}
+
+#result-box {
+    margin-top: 20px;
+    font-size: 20px;          /* ← 結果文字大 */
+    text-align: center;
+}
+
+/* ===============================
+   モーダル
+================================ */
+.modal-card {
+    background: #fff;
+    padding: 36px;
+    width: 420px;             /* ← モーダル拡大 */
+    border-radius: 16px;
+    text-align: center;
+}
+
+.modal-card h3 {
+    font-size: 22px;
+    margin-bottom: 14px;
+}
+
+.input {
+    width: 100%;
+    padding: 14px;            /* ← 入力しやすく */
+    margin: 18px 0;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 18px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: fixed;
+    bottom: 40px;                 /* ← 画面下寄せ */
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    z-index: 9999;
+}
+
+.modal-card {
+    background: #fff;
+    padding: 36px;
+    width: 420px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,.25);
+}
+</style>
+
+<script>
+let html5QrCode;
+let scanning = false;
+let stopTimer = null;
+
+const AUTO_STOP_MS = 20000;
+
+// ===============================
+// QR 読み取り
+// ===============================
+document.getElementById("start-scan").addEventListener("click", function() {
+    if (scanning) return;
+
+    document.getElementById("reader").style.display = "block";
+    document.getElementById("result-box").innerHTML = "";
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    Html5Qrcode.getCameras().then(cameras => {
+        if (!cameras.length) {
+            alert("カメラが見つかりません");
+            return;
+        }
+
+        scanning = true;
+
+        html5QrCode.start(
+            cameras[0].id,
+            { fps: 10, qrbox: 250 },
+            onScanSuccess
+        ).then(() => {
+            stopTimer = setTimeout(autoStopCamera, AUTO_STOP_MS);
+        });
+    });
+});
+
+function autoStopCamera() {
+    if (!scanning) return;
+
+    scanning = false;
+
+    html5QrCode.stop().then(() => {
+        document.getElementById("reader").style.display = "none";
+        document.getElementById("result-box").innerHTML =
+            "<span style='color:#666;'>時間切れのため停止しました</span>";
+    });
+}
+
+function onScanSuccess(qrMessage) {
+    if (!scanning) return;
+    scanning = false;
+
+    clearTimeout(stopTimer);
+
+    html5QrCode.stop().then(() => {
+        document.getElementById("reader").style.display = "none";
+    });
+
+    fetch(`/app/qr/scan/?email=${encodeURIComponent(qrMessage)}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("result-box").innerHTML =
+                data.status === "success"
+                ? `<span style="color:#16a34a;">${data.student}：${data.message}</span>`
+                : `<span style="color:#dc2626;">${data.message}</span>`;
+        });
+}
+
+// ===============================
+// パスワードモーダル
+// ===============================
+function openPasswordModal() {
+    document.getElementById("passwordModal").style.display = "flex";
+    document.getElementById("passwordInput").focus();
+}
+
+function closePasswordModal() {
+    document.getElementById("passwordModal").style.display = "none";
+}
+
+function submitPassword() {
+    const password = document.getElementById("passwordInput").value;
+
+    if (!password) {
+        alert("パスワードを入力してください");
+        return;
+    }
+
+    fetch("{% url 'app:verify_password' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: new URLSearchParams({ password })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            window.location.href = "{% url 'app:attendance_today' %}";
+        } else {
+            alert("パスワードが正しくありません");
+        }
+    });
+}
+</script>

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}出席確認{% endblock %}
+
+{% block content %}
+
+<h2 style="margin-bottom: 20px;">本日の出席状況</h2>
+
+<!-- ================== 今日の出席予定者 ================== -->
+<div style="background:#f0f4ff; padding:15px; border-radius:10px; margin-bottom:25px;">
+    <h3 style="margin-top:0;">【今日の出席予定者】</h3>
+
+    {% if rules_today %}
+        <ul style="list-style:none; padding:0;">
+            {% for rule in rules_today %}
+            <li style="background:white; padding:10px; margin:8px 0; border-radius:10px;
+                    display:flex; justify-content:space-between; border:1px solid #dce6ff;">
+                <span>
+                    {{ rule.student.child_name }}
+
+                    <span style="
+                        margin-left:10px;
+                        padding:4px 10px;
+                        background:#e8f0ff;
+                        border:1px solid #cddcff;
+                        border-radius:8px;
+                        font-size:13px;
+                        font-weight:bold;
+                    ">
+                        🕒 {{ rule.time_slot.name }}
+                        ({{ rule.time_slot.start_time|time:"H:i" }}～
+                        {{ rule.time_slot.end_time|time:"H:i" }})
+                    </span>
+                </span>
+
+                {% if rule.student.id in attended_ids %}
+                    <span style="color:green; font-weight:bold;">✔ 出席済</span>
+                {% else %}
+                    <span style="color:#999;">未出席</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>本日の出席予定者はいません。</p>
+    {% endif %}
+
+</div>
+
+<!-- ================== 本日の振替出席者 ================== -->
+<div style="background:#fffbea; padding:15px; border-radius:10px; margin-bottom:25px;">
+    <h3 style="margin-top:0;">【本日の振替出席者】</h3>
+
+    {% if transfer_students %}
+        <ul style="list-style:none; padding:0;">
+            {% for item in transfer_students %}
+            <li style="background:white; padding:10px; margin:8px 0; border-radius:10px;
+                       display:flex; justify-content:space-between; border:1px solid #ffe8a3;">
+                <span>
+                    {{ item.student.child_name }}
+                    <span style="
+                        margin-left:10px;
+                        padding:4px 10px;
+                        background:#fff3cd;
+                        border:1px solid #ffeeba;
+                        border-radius:8px;
+                        font-size:14px;
+                        font-weight:bold;
+                        color:#856404;
+                    ">
+                        🕒 {{ item.start_time|time:"H:i" }} ～ {{ item.end_time|time:"H:i" }}
+                    </span>
+                </span>
+
+                <span style="color:#e67e22; font-weight:bold;">
+                     振替
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>本日の振替出席者はいません。</p>
+    {% endif %}
+</div>
+
+<!-- ================== 今日の出席者 ================== -->
+<div style="background:#fff5f5; padding:15px; border-radius:10px;">
+    <h3 style="margin-top:0;">【今日の出席者】</h3>
+
+    {% if attendances %}
+        <ul style="list-style:none; padding:0;">
+            {% for a in attendances %}
+            <li style="background:white; padding:10px; margin:8px 0; border-radius:10px;
+                       display:flex; justify-content:space-between; border:1px solid #ffd6d6;">
+                <span>{{ a.student.child_name }}</span>
+                <span style="color:green;">{{ a.get_status_display }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>本日はまだ出席登録がありません。</p>
+    {% endif %}
+</div>
+
+<!-- ================== QRボタン ================== -->
+<a href="{% url 'app:qr_page' %}"
+   style="display:flex; flex-direction:column; align-items:center;
+          background:#5C82B8; color:white; padding:12px; border-radius:12px;
+          text-decoration:none; margin-top:25px;">
+    <span class="icon">📱</span>
+    <div>QRから出席登録へ</div>
+</a>
+
+{% endblock %}

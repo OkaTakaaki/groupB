@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}時間帯一覧{% endblock %}
+
+{% block content %}
+<style>
+.container {
+    max-width: 720px;
+    margin: 50px auto;
+    background: #ffffff;
+    padding: 36px;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+.container h2 {
+    text-align: center;
+    color: #4f74c8;
+    margin-bottom: 26px;
+    font-size: 1.6rem;
+}
+
+.top-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 18px;
+}
+
+.add-button {
+    background: linear-gradient(135deg, #5a82d1, #3f66b3);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: 0.2s ease;
+}
+
+.add-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.timeslot-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.timeslot-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: #fafcff;
+    border: 1px solid #e2e6f2;
+    margin-bottom: 12px;
+}
+
+.timeslot-name {
+    font-weight: 700;
+}
+
+.timeslot-time {
+    color: #444;
+    font-size: 0.95rem;
+}
+
+.empty {
+    text-align: center;
+    color: #888;
+    padding: 30px 0;
+}
+.edit-button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #5a82d1;
+    color: #5a82d1;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: 0.2s;
+}
+
+.edit-button:hover {
+    background: #5a82d1;
+    color: #fff;
+}
+</style>
+
+<div class="container">
+    <h2>時間帯一覧</h2>
+
+    <div class="top-actions">
+        <a href="{% url 'app:timeslot_create' %}" class="add-button">
+            ＋ 新規追加
+        </a>
+    </div>
+
+    <ul class="timeslot-list">
+        {% for slot in timeslots %}
+            <li class="timeslot-item">
+                <div>
+                    <span class="timeslot-name">
+                        {{ slot.name }}
+                    </span><br>
+                    <span class="timeslot-time">
+                        {{ slot.start_time|time:"H:i" }} ～ {{ slot.end_time|time:"H:i" }}
+                    </span>
+                </div>
+
+                <div>
+                    <a href="{% url 'timeslot_edit' slot.id %}" class="edit-button">
+                        編集
+                    </a>
+                </div>
+            </li>
+
+        {% empty %}
+            <li class="empty">
+                まだ登録されていません
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

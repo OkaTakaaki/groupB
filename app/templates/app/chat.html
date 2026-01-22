@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>チャット画面</title>
+    <link rel="stylesheet" href="{% static 'chat.css' %}">
+</head>
+
+<body>
+    <div class="chat-container">
+
+        <!-- 上部ヘッダー -->
+        <div class="header">
+            <h2>検索</h2>
+            <!-- 🔍 検索フォーム -->
+            <form method="GET" action="" style="margin: 0;">
+                <input type="text" name="q" placeholder="ユーザーを検索..." 
+                       class="search-box" value="{{ request.GET.q }}">
+            </form>
+        </div>
+
+        <div class="main">
+            <!-- 左：ユーザー一覧 -->
+            <div class="sidebar">
+                <ul>
+                    {% for user in users %}
+                        <li>
+                            <a href="{% url 'chat' user.id %}">
+                                <div class="user-icon">👤</div>
+                                <span class="user-name">{{ user.username }}</span>
+                            </a>
+                        </li>
+                    {% empty %}
+                        <li><p>該当するユーザーがいません。</p></li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- 右：チャット部分 -->
+            <div class="chat-area">
+                {% if selected_user %}
+                    <div class="chat-header">
+                        <h2>{{ selected_user.username }} さん</h2>
+                    </div>
+
+                    <div class="chat-messages">
+                        {% for message in messages %}
+                            <div class="message {% if message.sender == current_user %}sent{% else %}received{% endif %}">
+                                <strong>{{ message.sender.username }}：</strong> {{ message.content }}
+                            </div>
+                        {% empty %}
+                            <p class="no-msg">メッセージはまだありません。</p>
+                        {% endfor %}
+                    </div>
+
+                    <form method="POST" class="message-form">
+                        {% csrf_token %}
+                        {{ form.content }}
+                        <button type="submit">送信</button>
+                    </form>
+                {% else %}
+                    <div class="no-chat">
+                        <h3>左のユーザーを選択してください</h3>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 下：ナビゲーションバー -->
+        <div class="navbar">
+            <a href="{% url 'home' %}">🏠</a>
+            <a href="{% url 'users' %}">👤</a>
+            <a href="{% url 'messages' %}">✉️</a>
+            <a href="{% url 'calendar' %}">📅</a>
+            <a href="{% url 'settings' %}">⚙️</a>
+        </div>
+    </div>
+</body>
+</html>
