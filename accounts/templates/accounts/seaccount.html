@@ -4,55 +4,135 @@
 {% block content %}
 <style>
 .form-container {
-    max-width: 500px;
-    margin: 40px auto;
-    background: #fff;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    max-width: 720px;
+    margin: 50px auto;
+    background: #ffffff;
+    padding: 36px;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
     font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
 }
+
 .form-container h2 {
     text-align: center;
-    color: #5a82d1;
-    margin-bottom: 20px;
+    color: #4f74c8;
+    margin-bottom: 28px;
+    font-size: 1.6rem;
 }
+
+fieldset {
+    border: 1px solid #e0e5ef;
+    border-radius: 12px;
+    padding: 18px 20px 22px;
+    margin-bottom: 26px;
+    background: #fafcff;
+}
+
+legend {
+    font-weight: 700;
+    color: #4f74c8;
+    padding: 0 10px;
+    font-size: 1.05rem;
+}
+
 form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+p {
+    margin: 0;
+}
+
+label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+}
+
+input, select {
+    padding: 12px 14px;
+    border: 1px solid #cfd6e6;
+    border-radius: 10px;
+    font-size: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #5a82d1;
+    box-shadow: 0 0 0 2px rgba(90,130,209,0.15);
+}
+
+button {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #5a82d1, #3f66b3);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.message {
+    text-align: center;
+    color: #2f8f2f;
+    font-weight: bold;
+    margin-bottom: 16px;
+}
+
+.errorlist {
+    color: #d63031;
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+/* ===== 曜日選択UI ===== */
+.checkbox-group {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
-label {
-    font-weight: bold;
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid #e2e6f2;
 }
-input, select {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 1em;
+
+.checkbox-row:hover {
+    background: #f4f7ff;
 }
-button {
-    background-color: #5a82d1;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px;
-    font-size: 1em;
-    cursor: pointer;
-    transition: 0.2s;
+
+.checkbox-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #5a82d1;
 }
-button:hover {
-    background-color: #3e66b3;
+
+.checkbox-row .day-label {
+    margin: 0;
+    font-weight: 600;
+    min-width: 80px;
 }
-.message {
-    text-align: center;
-    color: green;
-    font-weight: bold;
-}
-.errorlist {
-    color: red;
-    list-style: none;
-    padding-left: 0;
+
+.checkbox-row select {
+    width: 220px;
 }
 </style>
 
@@ -65,27 +145,87 @@ button:hover {
         {% endfor %}
     {% endif %}
 
-    {% if form.errors %}
-        <ul class="errorlist">
-            {% for field in form %}
-                {% for error in field.errors %}
-                    <li>{{ field.label }}: {{ error }}</li>
-                {% endfor %}
-            {% endfor %}
-            {% for error in form.non_field_errors %}
-                <li>{{ error }}</li>
-            {% endfor %}
-        </ul>
-    {% endif %}
-
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
+
+        <!-- 生徒基本情報 -->
+        <fieldset>
+            <legend>生徒情報</legend>
+
+            <p>
+                {{ form.child_name.label_tag }}
+                {{ form.child_name }}
+            </p>
+
+            <p>
+                {{ form.child_name_kana.label_tag }}
+                {{ form.child_name_kana }}
+            </p>
+
+            <p>
+                {{ form.birth_date.label_tag }}
+                {{ form.birth_date }}
+            </p>
+
+            <p>
+                {{ form.gender.label_tag }}
+                {{ form.gender }}
+            </p>
+
+            <p>
+                {{ form.school_name.label_tag }}
+                {{ form.school_name }}
+            </p>
+
+            <p>
+                {{ form.address.label_tag }}
+                {{ form.address }}
+            </p>
+        </fieldset>
+
+        <!-- 出席曜日と時間帯 -->
+        <fieldset>
+            <legend>出席曜日と時間帯</legend>
+
+            <div class="checkbox-group">
+                {% for value, label in form.DAYS %}
+                <label class="checkbox-row">
+
+                    <input
+                        type="checkbox"
+                        name="attendance_days"
+                        value="{{ value }}"
+                        {% if value in selected_days %}checked{% endif %}
+                    >
+
+                    <span class="day-label">{{ label }}曜日</span>
+
+                    <select name="{{ value }}_time_slot">
+                        <option value="">時間帯を選択</option>
+                        {% for slot in time_slots %}
+                            <option value="{{ slot.id }}"
+                                {% for r in student.attendance_rules.all %}
+                                    {% if r.day_of_week == value and r.time_slot.id == slot.id %}
+                                        selected
+                                    {% endif %}
+                                {% endfor %}
+                            >
+                                {{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                </label>
+                {% endfor %}
+            </div>
+
+        </fieldset>
+
         <button type="submit">更新する</button>
     </form>
 
     <div style="text-align:center; margin-top:15px;">
-        <a href="{% url 'scaccount' %}">← 生徒登録ページへ戻る</a>
+        <a href="{% url 'student_select' %}">← 一覧へ戻る</a>
     </div>
 </div>
 {% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}時間帯編集{% endblock %}
+
+{% block content %}
+<style>
+.form-container {
+    max-width: 520px;
+    margin: 50px auto;
+    background: #ffffff;
+    padding: 36px;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+.form-container h2 {
+    text-align: center;
+    color: #4f74c8;
+    margin-bottom: 28px;
+    font-size: 1.5rem;
+}
+
+fieldset {
+    border: 1px solid #e0e5ef;
+    border-radius: 12px;
+    padding: 20px 22px 24px;
+    margin-bottom: 26px;
+    background: #fafcff;
+}
+
+legend {
+    font-weight: 700;
+    color: #4f74c8;
+    padding: 0 10px;
+    font-size: 1.05rem;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+p {
+    margin: 0;
+}
+
+label {
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: block;
+}
+
+input, select {
+    padding: 12px 14px;
+    border: 1px solid #cfd6e6;
+    border-radius: 10px;
+    font-size: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #5a82d1;
+    box-shadow: 0 0 0 2px rgba(90,130,209,0.15);
+}
+
+button {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #5a82d1, #3f66b3);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.errorlist {
+    color: #d63031;
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.back-link {
+    display: block;
+    text-align: center;
+    margin-top: 18px;
+}
+</style>
+
+<div class="form-container">
+    <h2>時間帯編集</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <fieldset>
+            <legend>時間帯情報</legend>
+
+            <p>
+                {{ form.name.label_tag }}
+                {{ form.name }}
+                {{ form.name.errors }}
+            </p>
+
+            <p>
+                {{ form.start_time.label_tag }}
+                {{ form.start_time }}
+                {{ form.start_time.errors }}
+            </p>
+
+            <p>
+                {{ form.end_time.label_tag }}
+                {{ form.end_time }}
+                {{ form.end_time.errors }}
+            </p>
+
+            {% if form.non_field_errors %}
+                <p class="errorlist">
+                    {{ form.non_field_errors }}
+                </p>
+            {% endif %}
+        </fieldset>
+
+        <button type="submit">更新する</button>
+    </form>
+
+    <a class="back-link" href="{% url 'app:timeslot_list' %}">
+        ← 一覧へ戻る
+    </a>
+</div>
+{% endblock %}
