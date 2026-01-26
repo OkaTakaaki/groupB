@@ -181,8 +181,8 @@
             <button type="submit" name="q" value="" style="padding:5px 10px;">全件表示</button>
         </form>
 
-        {% if not selected_day and not request.GET.q %}
-            <!-- ===== 曜日一覧 ===== -->
+        {% if user_type == "teacher" and not selected_day and not request.GET.q %}
+            <!-- ===== 曜日一覧（先生のみ表示） ===== -->
             {% for d, label in weekdays %}
                 <a href="?day={{ d }}" class="user-item">
                     <div class="user-icon">📅</div>
@@ -200,7 +200,13 @@
             {% endif %}
 
             {% for user in users %}
-                <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
+                {% if user.child_name %}
+                    {# Student の場合 #}
+                    <a href="{% url 'app:mail_detail' user.parent.id %}" class="user-item">
+                {% else %}
+                    {# Teacher の場合 #}
+                    <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
+                {% endif %}
                     <div class="user-icon">👤</div>
                     <span class="user-name">
                         {% if user.child_name %}
@@ -210,9 +216,10 @@
                         {% endif %}
                     </span>
                 </a>
-            {% empty %}
-                <p style="text-align:center;">該当するユーザーがいません</p>
             {% endfor %}
+            {% if users|length == 0 %}
+                <p>該当するユーザーが見つかりません。</p>
+            {% endif %}
         {% endif %}
 
     </div>

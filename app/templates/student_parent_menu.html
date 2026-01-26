@@ -113,7 +113,7 @@
 <body>
     <div class="smenu-container">
         <header class="smenu-header">
-            <a href="smenu" class="settings-link">
+            <a href="{% url 'app:setting' %}" class="settings-link">
                 <span class="settings-icon">⚙️</span> 
             </a>
         </header>
@@ -124,7 +124,7 @@
                 <span>&gt;</span>
             </li>
             <li class="smenu-item">
-                <a href="smenu">授業予定</a>
+                <a href="{% url 'app:calendar_month' %}">授業予定</a>
                 <span>&gt;</span>
             </li>
             <li class="smenu-item">

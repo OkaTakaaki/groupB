@@ -11,18 +11,18 @@
     position: relative;
     width: 900px;
     margin: 30px auto 60px;
-
+ 
     /* ★ 高さを必ず確保する */
     min-height: 1000px;
-
+ 
     padding: 20px 0;
     border-radius: 12px;
     background: #f9fbff;
     box-shadow: 0 8px 20px rgba(0,0,0,0.08);
     overflow: visible;
 }
-
-
+ 
+ 
 /* 時間帯レーン */
 .time-slot {
     position: absolute;
@@ -32,7 +32,7 @@
     background: linear-gradient(180deg, #f4f7ff, #eef3ff);
     border: 1px solid #dde5ff;
 }
-
+ 
 /* 時間ラベル */
 .time-label {
     position: absolute;
@@ -47,7 +47,7 @@
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-
+ 
 /* 横線 */
 .hour-line {
     position: absolute;
@@ -56,7 +56,7 @@
     height: 1px;
     background: #e1e7f5;
 }
-
+ 
 /* クリック可能エリア */
 .hour-click {
     position: absolute;
@@ -68,7 +68,7 @@
 .hour-click:hover {
     background: rgba(80, 120, 255, 0.08);
 }
-
+ 
 /* 予定カード */
 .schedule-block {
     position: absolute;
@@ -87,21 +87,21 @@
     transform: translateY(-2px) scale(1.01);
     box-shadow: 0 10px 20px rgba(0,0,0,0.25);
 }
-
+ 
 /* ステータス色 */
 .status-予定 { background: #5C82B8; }
 .status-出席 { background: #43a047; }
 .status-欠席 { background: #e53935; }
 .status-振替 { background: #fb8c00; }
 .status-中止 { background: #757575; }
-
+ 
 </style>
-
-
+ 
+ 
 <h2 style="text-align:center; margin-bottom:20px;">
     {{ target_date|date:"Y年n月j日 (D)" }}
 </h2>
-
+ 
 <div style="text-align:center; margin-bottom:15px;">
     <button class="btn btn-outline-primary"
             onclick="location.href='{{ prev_day_url }}'">
@@ -116,37 +116,37 @@
         次の日
     </button>
 </div>
-
-
+ 
+ 
 <div class="day-wrapper">
-
+ 
 {% for slot in time_slots %}
     {% with start_min=slot.start_time|time_to_minutes end_min=slot.end_time|time_to_minutes %}
-
+ 
     <!-- 時間帯レーン背景 -->
     <div class="time-slot"
          style="top:{{ start_min }}px; height:{{ end_min|minus:start_min }}px;">
     </div>
-
+ 
     <!-- 時間帯ラベル -->
     <div class="time-label" style="top:{{ start_min }}px;">
         {{ slot.name }}<br>
         {{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}
     </div>
-
+ 
     <!-- 区切り線 -->
     <div class="hour-line" style="top:{{ start_min }}px;"></div>
-
+ 
     <!-- クリックエリア -->
     <div class="hour-click"
          onclick="createSchedule('{{ slot.start_time|time:"H:i" }}')"
          style="top:{{ start_min }}px; height:{{ end_min|minus:start_min }}px;">
     </div>
-
+ 
     {% endwith %}
 {% endfor %}
-
-
+ 
+ 
 <!-- 予定表示 -->
 {% for schedule in schedules %}
     {% with start_min=schedule.start_time|time_to_minutes end_min=schedule.end_time|time_to_minutes %}
@@ -161,14 +161,14 @@
     </div>
     {% endwith %}
 {% endfor %}
-
+ 
 </div>
-
-
+ 
+ 
 <script>
 function createSchedule(startTime) {
     location.href = "{% url 'app:schedule_create' %}?date={{ target_date }}&start=" + startTime;
 }
 </script>
-
+ 
 {% endblock %}
