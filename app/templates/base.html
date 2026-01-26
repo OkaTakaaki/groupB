@@ -94,7 +94,7 @@
     </footer>
 {% endif %}
 
-{% if request.session.user_type != 'teacher' %}
+{% if request.session.user_type == 'student' or request.session.user_type == 'parent' %}
     <!-- ===== student / parent 用 戻るボタン ===== -->
     <div style="
         position: fixed;
@@ -115,6 +115,9 @@
             ← メニューに戻る
         </a>
     </div>
+
+{% else %}
+
 {% endif %}
 
 
