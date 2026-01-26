@@ -88,6 +88,23 @@
     background: #5a82d1;
     color: #fff;
 }
+.delete-button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #d9534f;
+    color: #d9534f;
+    background: white;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-left: 6px;
+    transition: 0.2s;
+}
+
+.delete-button:hover {
+    background: #d9534f;
+    color: #fff;
+}
 </style>
 
 <div class="container">
@@ -115,7 +132,14 @@
                     <a href="{% url 'timeslot_edit' slot.id %}" class="edit-button">
                         編集
                     </a>
+
+                    <a href="{% url 'app:timeslot_delete' slot.id %}"
+                    class="delete-button"
+                    onclick="return confirm('この時間帯を削除してもよろしいですか？');">
+                        削除
+                    </a>
                 </div>
+
             </li>
 
         {% empty %}

@@ -429,19 +429,34 @@ def attendance_today(request):
     if not request.session.get("reauth_ok"):
         return redirect("app:qr_page")
 
-    request.session["reauth_ok"] = False
+    # request.session["reauth_ok"] = False
 
     today = timezone.now().date()
 
     weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     today_week = weekday_map[timezone.now().weekday()]
 
+    # ✅ 追加：選択された時間帯
+    selected_slot = request.GET.get("slot")
+
     rules_today = StudentAttendanceRule.objects.select_related(
         "student",
         "time_slot"
     ).filter(
         day_of_week=today_week
-    ).order_by("time_slot__start_time")
+    )
+
+    # ✅ 追加：時間帯で絞り込み
+    if selected_slot:
+        rules_today = rules_today.filter(time_slot_id=selected_slot)
+
+    rules_today = rules_today.order_by("time_slot__start_time")
+
+    # ✅ 時間帯ボタン用（重複なし）
+    time_slots_today = TimeSlot.objects.filter(
+        studentattendancerule__day_of_week=today_week
+    ).distinct().order_by("start_time")
+
 
 
     transfer_schedules = Schedule.objects.filter(
@@ -464,6 +479,8 @@ def attendance_today(request):
 
     return render(request, "teacher_attendance_list.html", {
     "rules_today": rules_today,
+    "time_slots_today": time_slots_today,
+    "selected_slot": selected_slot, 
     "transfer_students": transfer_students,
     "attendances": attendances,
     "attended_ids": attended_ids,
@@ -530,4 +547,15 @@ def timeslot_list(request):
     timeslots = TimeSlot.objects.all().order_by("start_time")
     return render(request, "app/timeslot_list.html", {
         "timeslots": timeslots
+    })
+
+def timeslot_delete(request, pk):
+    timeslot = get_object_or_404(TimeSlot, pk=pk)
+
+    if request.method == "POST":
+        timeslot.delete()
+        return redirect("app:timeslot_list")
+
+    return render(request, "app/timeslot_confirm_delete.html", {
+        "timeslot": timeslot
     })

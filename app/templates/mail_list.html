@@ -6,172 +6,156 @@
 
 {% block content %}
 <style>
-    .mail-container {
-        display: flex;
-        height: calc(100vh - 160px); /* header + footerを引く */
-        background-color: #f9f9f9;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
+/* 全体コンテナ */
+.mail-container {
+    display: flex;
+    height: calc(100vh - 260px);   /* header + footer 分を引く */
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding-bottom: 90px;         /* footer 回避 */
+}
 
-    /* サイドバー（ユーザー一覧） */
-    .sidebar {
-        width: 30%;
-        background-color: #AFC4D5;
-        padding: 10px;
-        overflow-y: auto;
-        border-right: 2px solid #5C82B8;
-    }
+/* サイドバー（ユーザー一覧） */
+.sidebar {
+    width: 30%;
+    background-color: #AFC4D5;
+    padding: 10px;
+    overflow-y: auto;
+    border-right: 2px solid #5C82B8;
+}
 
-    .search-box {
-        width: 100%;
-        padding: 8px;
-        border-radius: 6px;
-        border: none;
-        margin-bottom: 10px;
-        font-size: 14px;
-    }
+.search-box {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: none;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
 
-    .user-item {
-        display: flex;
-        align-items: center;
-        background-color: #D9E3EC;
-        padding: 8px;
-        border-radius: 6px;
-        margin-bottom: 6px;
-        transition: background-color 0.2s;
-    }
+.user-item {
+    display: flex;
+    align-items: center;
+    background-color: #D9E3EC;
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    transition: background-color 0.2s;
+    text-decoration: none;
+}
 
-    .user-item:hover {
-        background-color: #c9d7e2;
-    }
+.user-item:hover {
+    background-color: #c9d7e2;
+}
 
-    .user-icon {
-        font-size: 22px;
-        margin-right: 10px;
-    }
+.user-icon {
+    font-size: 22px;
+    margin-right: 10px;
+}
 
-    .user-name {
-        font-size: 15px;
-        font-weight: bold;
-        color: #333;
-    }
+.user-name {
+    font-size: 15px;
+    font-weight: bold;
+    color: #333;
+}
 
-    /* チャット部分 */
-    .chat-area {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        background-color: white;
-    }
+/* チャット部分 */
+.chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    position: relative;
+}
 
-    .chat-header {
-        background-color: #5C82B8;
-        color: white;
-        padding: 12px;
-        text-align: center;
-        font-weight: bold;
-        font-size: 16px;
-    }
+.chat-header {
+    background-color: #5C82B8;
+    color: white;
+    padding: 12px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 16px;
+}
 
-    .chat-messages {
-        flex: 1;
-        padding: 15px;
-        overflow-y: auto;
-        background-color: #f8f8f8;
-    }
+/* メッセージ一覧 */
+.chat-messages {
+    flex: 1;
+    padding: 15px;
+    padding-bottom: 160px;   /* 入力フォーム + 余白 */
+    overflow-y: auto;
+    background-color: #f8f8f8;
+    display: flex;
+    flex-direction: column;
+}
 
-    .message {
-        margin: 8px 0;
-        padding: 10px 12px;
-        border-radius: 10px;
-        max-width: 70%;
-        display: inline-block;
-        word-break: break-word;
-    }
+.message {
+    margin: 8px 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    max-width: 70%;
+    word-break: break-word;
+}
 
-    .sent {
-        background-color: #DCF8C6;
-        align-self: flex-end;
-        text-align: right;
-    }
+/* 自分 */
+.sent {
+    background-color: #DCF8C6;
+    align-self: flex-end;
+    text-align: right;
+}
 
-    .received {
-        background-color: #E8E8E8;
-        align-self: flex-start;
-        text-align: left;
-    }
+/* 相手 */
+.received {
+    background-color: #E8E8E8;
+    align-self: flex-start;
+    text-align: left;
+}
 
-    .message-form {
-        display: flex;
-        padding: 10px;
-        background-color: #EEE;
-        border-top: 1px solid #ccc;
-    }
+/* 入力フォーム（footerの上で固定） */
+.message-form {
+    position: absolute;
+    bottom: 90px;        /* ← footer高さ分 */
+    left: 0;
+    width: 100%;
+    display: flex;
+    padding: 10px;
+    background-color: #EEE;
+    border-top: 1px solid #ccc;
+}
 
-    .message-form input[type="text"] {
-        flex: 1;
-        padding: 8px;
-        border-radius: 5px;
-        border: 1px solid #CCC;
-        font-size: 14px;
-    }
+.message-form input[type="text"] {
+    flex: 1;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #CCC;
+    font-size: 14px;
+}
 
-    .message-form button {
-        padding: 8px 16px;
-        margin-left: 10px;
-        background-color: #5C82B8;
-        border: none;
-        color: white;
-        border-radius: 5px;
-        cursor: pointer;
-    }
+.message-form button {
+    padding: 8px 16px;
+    margin-left: 10px;
+    background-color: #5C82B8;
+    border: none;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
 
-    .message-form button:hover {
-        background-color: #496a94;
-    }
+.message-form button:hover {
+    background-color: #496a94;
+}
 
-    .no-chat {
-        text-align: center;
-        color: #555;
-        margin: auto;
-    }
-
-    .chat-messages {
-        flex: 1;
-        padding: 15px;
-        overflow-y: auto;
-        background-color: #f8f8f8;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .message {
-        margin: 8px 0;
-        padding: 10px 12px;
-        border-radius: 10px;
-        max-width: 70%;
-        word-break: break-word;
-    }
-
-    /* 自分のメッセージは右寄せ */
-    .sent {
-        background-color: #DCF8C6;
-        align-self: flex-end;
-        text-align: right;
-    }
-
-    /* 相手のメッセージは左寄せ */
-    .received {
-        background-color: #E8E8E8;
-        align-self: flex-start;
-        text-align: left;
-    }
+.no-chat {
+    text-align: center;
+    color: #555;
+    margin: auto;
+}
 </style>
 
-
 <div class="mail-container">
+
+    <!-- 左：ユーザー一覧 -->
     <div class="sidebar">
 
         <!-- 🔍 検索フォーム -->
@@ -201,30 +185,26 @@
 
             {% for user in users %}
                 {% if user.child_name %}
-                    {# Student の場合 #}
                     <a href="{% url 'app:mail_detail' user.parent.id %}" class="user-item">
                 {% else %}
-                    {# Teacher の場合 #}
                     <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
                 {% endif %}
-                    <div class="user-icon">👤</div>
-                    <span class="user-name">
-                        {% if user.child_name %}
-                            {{ user.child_name }}
-                        {% else %}
-                            {{ user.name }}
-                        {% endif %}
-                    </span>
-                </a>
+                        <div class="user-icon">👤</div>
+                        <span class="user-name">
+                            {% if user.child_name %}
+                                {{ user.child_name }}
+                            {% else %}
+                                {{ user.name }}
+                            {% endif %}
+                        </span>
+                    </a>
             {% endfor %}
+
             {% if users|length == 0 %}
                 <p>該当するユーザーが見つかりません。</p>
             {% endif %}
         {% endif %}
-
     </div>
-
-
 
     <!-- 右：チャット画面 -->
     <div class="chat-area">
@@ -251,7 +231,6 @@
                 {% empty %}
                     <p class="no-chat">メッセージはまだありません。</p>
                 {% endfor %}
-
             </div>
 
             <form method="POST" class="message-form">
@@ -259,11 +238,14 @@
                 {{ form.content }}
                 <button type="submit">送信</button>
             </form>
+
         {% else %}
             <div class="no-chat">
                 <h3>左のユーザーを選択してください</h3>
             </div>
         {% endif %}
     </div>
+
 </div>
 {% endblock %}
+ 
