@@ -297,45 +297,16 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    # ⭐ 追加
+    is_read = models.BooleanField("既読", default=False)
+
     def __str__(self):
         sender = self.parent_sender or self.teacher_sender
         receiver = self.parent_receiver or self.teacher_receiver
         return f"{sender} → {receiver}: {self.content[:20]}"
-
-
+    
 # =========================
 # お知らせ
-# =========================
-class Notice(models.Model):
-    title = models.CharField(max_length=200)
-    content = models.TextField()
-    date = models.DateField(auto_now_add=True)
-    sender = models.ForeignKey(Teacher, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return f"{self.title}（{self.date}）"
-
-
-class StudentNotice(models.Model):
-    student = models.ForeignKey(
-        Student,
-        on_delete=models.CASCADE,
-        related_name="notices"
-    )
-    title = models.CharField(max_length=100)
-    message = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    is_read = models.BooleanField(default=False)
-
-    class Meta:
-        db_table = "student_notices"
-
-    def __str__(self):
-        return self.title
-
-
-# =========================
-# 生徒向け通知
 # =========================
 class StudentNotice(models.Model):
     student = models.ForeignKey(
@@ -346,13 +317,20 @@ class StudentNotice(models.Model):
     )
     title = models.CharField("タイトル", max_length=100)
     message = models.TextField("内容")
+
     is_read = models.BooleanField("既読", default=False)
+
+    # ⭐ 追加
+    is_important = models.BooleanField("重要", default=False)
+    expire_at = models.DateTimeField("掲載期限", null=True, blank=True)
+    attachment = models.FileField(
+        "添付ファイル",
+        upload_to="notice_files/",
+        null=True,
+        blank=True
+    )
+
     created_at = models.DateTimeField("送信日時", auto_now_add=True)
 
     class Meta:
         db_table = "student_notices"
-        verbose_name = "生徒通知"
-        verbose_name_plural = "生徒通知一覧"
-
-    def __str__(self):
-        return f"{self.student} - {self.title}"

@@ -4,7 +4,38 @@
 
 {% block content %}
 
+<style>
+.page-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+/* 左：3 */
+.left-area {
+    flex: 3;
+}
+
+/* 右：1 */
+.right-area {
+    flex: 1;
+    min-width: 260px;
+}
+
+/* スマホ対応 */
+@media (max-width: 900px) {
+    .page-layout {
+        flex-direction: column;
+    }
+}
+</style>
+
 <h2 style="margin-bottom: 20px;">本日の出席状況</h2>
+
+<div class="page-layout">
+
+<!-- ================== 左カラム ================== -->
+<div class="left-area">
 
 <!-- ================== 今日の出席予定者 ================== -->
 <div style="background:#f0f4ff; padding:15px; border-radius:10px; margin-bottom:25px;">
@@ -13,7 +44,6 @@
     <!-- ===== 時間帯フィルターボタン ===== -->
     <div style="margin-bottom:15px; display:flex; flex-wrap:wrap; gap:8px;">
 
-        <!-- 全件ボタン -->
         <a href="?"
            style="
             padding:6px 14px;
@@ -77,7 +107,6 @@
     {% else %}
         <p>該当する出席予定者はいません。</p>
     {% endif %}
-
 </div>
 
 <!-- ================== 本日の振替出席者 ================== -->
@@ -105,9 +134,7 @@
                     </span>
                 </span>
 
-                <span style="color:#e67e22; font-weight:bold;">
-                     振替
-                </span>
+                <span style="color:#e67e22; font-weight:bold;">振替</span>
             </li>
             {% endfor %}
         </ul>
@@ -135,32 +162,14 @@
     {% endif %}
 </div>
 
-<!-- ================== QRボタン ================== -->
-<a href="{% url 'app:qr_page' %}"
-   style="
-        position: fixed;
-        bottom: 100px;   /* ← フッターより上に固定 */
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        background: #5C82B8;
-        color: white;
-        padding: 14px 28px;
-        border-radius: 40px;
-        text-decoration: none;
-        box-shadow: 0 6px 12px rgba(0,0,0,0.25);
-        z-index: 2000;
-   ">
-    <span class="icon">📱</span>
-    <div>QRから出席登録へ</div>
-</a>
+</div> <!-- left-area end -->
 
 
-<!-- ===== お知らせ ===== -->
+<!-- ================== 右カラム（お知らせ） ================== -->
+<div class="right-area">
+
 <div style="background:#f7f7ff; padding:15px; border-radius:12px;
-            border:1px solid #dcdcff; margin-top:30px;">
+            border:1px solid #dcdcff;">
     <h3>📢 お知らせ</h3>
 
     {% if notices %}
@@ -200,6 +209,11 @@
     {% endif %}
 </div>
 
+</div> <!-- right-area end -->
+
+</div> <!-- page-layout end -->
+
+
 <!-- ===== JavaScript ===== -->
 <script>
 function getCookie(name) {
@@ -230,7 +244,7 @@ function deleteNotice(noticeId) {
     .then(data => {
         if (data.success) {
             const el = document.getElementById(`notice-${noticeId}`);
-            if (el) el.remove(); // ← 画面遷移なしで削除
+            if (el) el.remove();
         } else {
             alert('削除に失敗しました');
         }

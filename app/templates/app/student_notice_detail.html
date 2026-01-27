@@ -1,89 +1,118 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>{{ notice.title }}</title>
-    <style>
-        body {
-            font-family: "Helvetica Neue", Arial, sans-serif;
-            background-color: #f4f6f8;
-            margin: 0;
-            padding: 0;
-        }
+{% extends "base.html" %}
 
-        .container {
-            max-width: 700px;
-            margin: 40px auto;
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
+{% block title %}{{ notice.title }}{% endblock %}
 
-        h2 {
-            margin-top: 0;
-            color: #2c3e50;
-            font-size: 22px;
-        }
+{% block content %}
+<style>
+    .notice-detail-container {
+        max-width: 720px;
+        margin: 30px auto;
+        background-color: #ffffff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
 
-        .date {
-            color: #777;
-            font-size: 13px;
-            margin-bottom: 20px;
-        }
+    .notice-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
 
-        hr {
-            border: none;
-            border-top: 1px solid #e0e0e0;
-            margin: 20px 0;
-        }
+    .notice-title {
+        font-size: 22px;
+        font-weight: bold;
+        color: #2c3e50;
+    }
 
-        .message {
-            font-size: 15px;
-            line-height: 1.8;
-            color: #333;
-        }
+    .badge {
+        display: inline-block;
+        background: #e74c3c;
+        color: white;
+        font-size: 12px;
+        padding: 3px 10px;
+        border-radius: 12px;
+    }
 
-        .back {
-            margin-top: 30px;
-            text-align: left;
-        }
+    .notice-date {
+        margin-top: 6px;
+        font-size: 13px;
+        color: #777;
+    }
 
-        .back a {
-            display: inline-block;
-            text-decoration: none;
-            color: #fff;
-            background-color: #3498db;
-            padding: 10px 16px;
-            border-radius: 5px;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
+    .expire-date {
+        margin-top: 2px;
+        font-size: 12px;
+        color: #999;
+    }
 
-        .back a:hover {
-            background-color: #2980b9;
-        }
-    </style>
-</head>
-<body>
+    hr {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 20px 0;
+    }
 
-<div class="container">
-    <h2>{{ notice.title }}</h2>
+    .notice-message {
+        font-size: 15px;
+        line-height: 1.8;
+        color: #333;
+        white-space: pre-wrap;
+    }
 
-    <div class="date">
-        {{ notice.created_at|date:"Y年m月d日 H:i" }}
+    .attachment {
+        margin-top: 20px;
+    }
+
+    .attachment a {
+        display: inline-block;
+        text-decoration: none;
+        background-color: #3498db;
+        color: #fff;
+        padding: 8px 14px;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+
+    .attachment a:hover {
+        background-color: #2980b9;
+    }
+</style>
+
+<div class="notice-detail-container">
+
+    <div class="notice-header">
+        <div class="notice-title">{{ notice.title }}</div>
+
+        {% if notice.is_important %}
+            <span class="badge">重要</span>
+        {% endif %}
     </div>
+
+    <div class="notice-date">
+        📅 送信日：{{ notice.created_at|date:"Y年m月d日 H:i" }}
+    </div>
+
+    {% if notice.expire_at %}
+        <div class="expire-date">
+            ⏳ 掲載期限：{{ notice.expire_at|date:"Y年m月d日" }}
+        </div>
+    {% endif %}
 
     <hr>
 
-    <div class="message">
-        {{ notice.message|linebreaks }}
+    <div class="notice-message">
+        {{ notice.message }}
     </div>
 
-    <div class="back">
-        <a href="{% url 'app:student_notice_list' %}">← お知らせ一覧に戻る</a>
-    </div>
+    {% if notice.attachment %}
+        <div class="attachment">
+            📎
+            <a href="{{ notice.attachment.url }}" target="_blank">
+                添付ファイルを開く
+            </a>
+        </div>
+    {% endif %}
+
 </div>
-
-</body>
-</html>
+{% endblock %}

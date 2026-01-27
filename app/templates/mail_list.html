@@ -9,15 +9,15 @@
 /* 全体コンテナ */
 .mail-container {
     display: flex;
-    height: calc(100vh - 260px);   /* header + footer 分を引く */
+    height: calc(100vh - 260px);
     background-color: #f9f9f9;
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    padding-bottom: 90px;         /* footer 回避 */
+    padding-bottom: 90px;
 }
 
-/* サイドバー（ユーザー一覧） */
+/* サイドバー */
 .sidebar {
     width: 30%;
     background-color: #AFC4D5;
@@ -44,6 +44,7 @@
     margin-bottom: 6px;
     transition: background-color 0.2s;
     text-decoration: none;
+    position: relative;   /* ← バッジ用 */
 }
 
 .user-item:hover {
@@ -60,6 +61,22 @@
     font-weight: bold;
     color: #333;
 }
+
+.unread-badge {
+    margin-left: auto;     /* ← 右端へ押す */
+    background: red;
+    color: white;
+    font-size: 12px;
+    padding: 2px 7px;
+    border-radius: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;   /* ← 縦中央 */
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+}
+
 
 /* チャット部分 */
 .chat-area {
@@ -83,7 +100,7 @@
 .chat-messages {
     flex: 1;
     padding: 15px;
-    padding-bottom: 160px;   /* 入力フォーム + 余白 */
+    padding-bottom: 160px;
     overflow-y: auto;
     background-color: #f8f8f8;
     display: flex;
@@ -96,26 +113,35 @@
     border-radius: 10px;
     max-width: 70%;
     word-break: break-word;
+    position: relative;
 }
 
 /* 自分 */
 .sent {
     background-color: #DCF8C6;
     align-self: flex-end;
-    text-align: right;
 }
 
 /* 相手 */
 .received {
     background-color: #E8E8E8;
     align-self: flex-start;
-    text-align: left;
 }
 
-/* 入力フォーム（footerの上で固定） */
+/* 🟡 未読ラベル */
+.unread-label {
+    font-size: 11px;
+    color: white;
+    background: red;
+    padding: 2px 6px;
+    border-radius: 8px;
+    margin-left: 6px;
+}
+
+/* 入力フォーム */
 .message-form {
     position: absolute;
-    bottom: 90px;        /* ← footer高さ分 */
+    bottom: 90px;
     left: 0;
     width: 100%;
     display: flex;
@@ -155,97 +181,85 @@
 
 <div class="mail-container">
 
-    <!-- 左：ユーザー一覧 -->
-    <div class="sidebar">
+<!-- 左：ユーザー一覧 -->
+<div class="sidebar">
 
-        <!-- 🔍 検索フォーム -->
-        <form method="GET" action="" style="display:flex; gap:5px; margin-bottom:10px;">
-            <input type="text" name="q" placeholder="🔍 ユーザーを検索..." class="search-box" value="{{ request.GET.q }}">
-            <button type="submit" style="padding:5px 10px;">検索</button>
-            <button type="submit" name="q" value="" style="padding:5px 10px;">全件表示</button>
-        </form>
+    <!-- 🔍 検索フォーム -->
+    <form method="GET" action="" style="display:flex; gap:5px; margin-bottom:10px;">
+        <input type="text" name="q" placeholder="🔍 ユーザーを検索..." class="search-box" value="{{ request.GET.q }}">
+        <button type="submit">検索</button>
+        <button type="submit" name="q" value="">全件</button>
+    </form>
 
-        {% if user_type == "teacher" and not selected_day and not request.GET.q %}
-            <!-- ===== 曜日一覧（先生のみ表示） ===== -->
-            {% for d, label in weekdays %}
-                <a href="?day={{ d }}" class="user-item">
-                    <div class="user-icon">📅</div>
-                    <span class="user-name">{{ label }}</span>
-                </a>
-            {% endfor %}
-
+    {% for user in users %}
+        {% if user.child_name %}
+            <a href="{% url 'app:mail_detail' user.parent.id %}" class="user-item">
         {% else %}
-            <!-- ===== 生徒 / ユーザー一覧 ===== -->
-
-            {% if selected_day and not request.GET.q %}
-                <a href="?" style="display:block; margin-bottom:10px; font-size:13px;">
-                    ← 曜日選択に戻る
-                </a>
-            {% endif %}
-
-            {% for user in users %}
+            <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
+        {% endif %}
+            <div class="user-icon">👤</div>
+            <span class="user-name">
                 {% if user.child_name %}
-                    <a href="{% url 'app:mail_detail' user.parent.id %}" class="user-item">
+                    {{ user.child_name }}
                 {% else %}
-                    <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
+                    {{ user.name }}
                 {% endif %}
-                        <div class="user-icon">👤</div>
-                        <span class="user-name">
-                            {% if user.child_name %}
-                                {{ user.child_name }}
-                            {% else %}
-                                {{ user.name }}
-                            {% endif %}
-                        </span>
-                    </a>
-            {% endfor %}
+            </span>
 
-            {% if users|length == 0 %}
-                <p>該当するユーザーが見つかりません。</p>
+            <!-- 🔴 未読件数 -->
+            {% if user.unread_count > 0 %}
+                <span class="unread-badge">
+                    {{ user.unread_count }}
+                </span>
             {% endif %}
+        </a>
+    {% endfor %}
+</div>
+
+<!-- 右：チャット画面 -->
+<div class="chat-area">
+{% if selected_user %}
+    <div class="chat-header">
+        {% if selected_user.child_name %}
+            {{ selected_user.child_name }} さん
+        {% else %}
+            {{ selected_user.name }} さん
         {% endif %}
     </div>
 
-    <!-- 右：チャット画面 -->
-    <div class="chat-area">
-        {% if selected_user %}
-            <div class="chat-header">
-                {% if selected_user.child_name %}
-                    {{ selected_user.child_name }} さん
+    <div class="chat-messages">
+        {% for message in messages %}
+            <div class="message
+                {% if message.parent_sender == current_user or message.teacher_sender == current_user %}
+                    sent
                 {% else %}
-                    {{ selected_user.name }} さん
+                    received
+                {% endif %}
+            ">
+                {{ message.content }}
+
+                <!-- 🟡 未読表示 -->
+                {% if not message.is_read and message.parent_sender != current_user and message.teacher_sender != current_user %}
+                    <span class="unread-label">未読</span>
                 {% endif %}
             </div>
-
-            <div class="chat-messages">
-                {% for message in messages %}
-                    <div class="message
-                        {% if message.parent_sender == current_user or message.teacher_sender == current_user %}
-                            sent
-                        {% else %}
-                            received
-                        {% endif %}
-                    ">
-                        {{ message.content }}
-                    </div>
-                {% empty %}
-                    <p class="no-chat">メッセージはまだありません。</p>
-                {% endfor %}
-            </div>
-
-            <form method="POST" class="message-form">
-                {% csrf_token %}
-                {{ form.content }}
-                <button type="submit">送信</button>
-            </form>
-
-        {% else %}
-            <div class="no-chat">
-                <h3>左のユーザーを選択してください</h3>
-            </div>
-        {% endif %}
+        {% empty %}
+            <p class="no-chat">メッセージはまだありません。</p>
+        {% endfor %}
     </div>
+
+    <form method="POST" class="message-form">
+        {% csrf_token %}
+        {{ form.content }}
+        <button type="submit">送信</button>
+    </form>
+
+{% else %}
+    <div class="no-chat">
+        <h3>左のユーザーを選択してください</h3>
+    </div>
+{% endif %}
+</div>
 
 </div>
 {% endblock %}
- 

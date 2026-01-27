@@ -8,6 +8,7 @@ from .models import (
     TimeSlot,
     StudentAttendanceRule,
     Attendance,
+    StudentNotice
 )
 
 # =========================
@@ -38,13 +39,11 @@ class StudentAdmin(admin.ModelAdmin):
         'created_at',
     )
 
-    # 保護者氏名
     def parent_name(self, obj):
         return obj.parent.name if obj.parent else "未設定"
     parent_name.admin_order_field = 'parent__name'
     parent_name.short_description = '保護者氏名'
 
-    # 保護者ログインID
     def parent_login_id(self, obj):
         return obj.parent.login_id if obj.parent else "未設定"
     parent_login_id.admin_order_field = 'parent__login_id'
@@ -60,11 +59,12 @@ class StudentAttendanceRuleAdmin(admin.ModelAdmin):
         'id',
         'student',
         'day_of_week',
-        'time_slot',   # ✅ ここだけ表示する
+        'time_slot',
     )
     list_filter = ('day_of_week',)
     search_fields = ('student__child_name',)
     ordering = ('student', 'day_of_week')
+
 
 # =========================
 # 講師モデル
@@ -85,18 +85,27 @@ class TeacherAdmin(admin.ModelAdmin):
 class ScheduleAdmin(admin.ModelAdmin):
     list_display = ('id', 'date', 'start_time', 'end_time', 'teacher', 'student_names')
 
-    # ManyToManyField に対応
     def student_names(self, obj):
         return ", ".join(s.child_name for s in obj.students.all())
     student_names.short_description = '生徒氏名'
 
 
 # =========================
-# メッセージモデル
+# メッセージモデル（⭐既読対応）
 # =========================
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'sender_name', 'receiver_name', 'content_snippet', 'timestamp')
+    list_display = (
+        'id',
+        'sender_name',
+        'receiver_name',
+        'content_snippet',
+        'is_read',          # ⭐ 追加
+        'timestamp',
+    )
+
+    list_filter = ('is_read', 'timestamp')
+    search_fields = ('content',)
 
     def sender_name(self, obj):
         sender = obj.parent_sender or obj.teacher_sender
@@ -120,8 +129,9 @@ class MessageAdmin(admin.ModelAdmin):
 class TimeSlotAdmin(admin.ModelAdmin):
     list_display = ("name", "start_time", "end_time")
 
+
 # =========================
-# 出席記録モデル   
+# 出席記録モデル
 # =========================
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
@@ -129,3 +139,47 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_filter = ('date', 'status')
     search_fields = ('student__child_name',)
     ordering = ('-date', 'student')
+
+
+# =========================
+# 生徒お知らせモデル（⭐重要・期限・添付対応）
+# =========================
+@admin.register(StudentNotice)
+class StudentNoticeAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "student",
+        "title",
+        "is_important",     # ⭐ 追加
+        "expire_at",        # ⭐ 追加
+        "is_read",
+        "created_at",
+    )
+
+    list_filter = (
+        "is_important",
+        "is_read",
+        "expire_at",
+        "created_at",
+    )
+
+    search_fields = (
+        "title",
+        "message",
+        "student__child_name",
+    )
+
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)
+
+    fieldsets = (
+        ("基本情報", {
+            "fields": ("student", "title", "message", "attachment")
+        }),
+        ("公開設定", {
+            "fields": ("is_important", "expire_at")
+        }),
+        ("状態", {
+            "fields": ("is_read", "created_at")
+        }),
+    )

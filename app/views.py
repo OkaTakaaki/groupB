@@ -13,12 +13,13 @@ from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.db.models import Q
+from django.core.files.base import ContentFile
 from django import forms
 from django.contrib import messages
 # Local Imports
 from .models import (
     Schedule, Student, Parent, Teacher,
-    Message, Notice, StudentAttendanceRule, Attendance, TimeSlot
+    Message,  StudentAttendanceRule, Attendance, TimeSlot
 )
 from .forms import ScheduleForm, MessageForm
 
@@ -33,7 +34,42 @@ from django.views.decorators.http import require_POST
 # ===============================
 def student_parent_menu(request):
     user_type = request.session.get('user_type')
-    return render(request, 'student_parent_menu.html', {'user_type': user_type})
+    user_id = request.session.get('user_id')
+
+    notice_unread_count = 0
+    mail_unread_count = 0
+    student = None
+    parent = None
+
+    # 生徒ログイン
+    if user_type == "student":
+        student = Student.objects.filter(id=user_id).first()
+        parent = student.parent if student else None
+
+    # 保護者ログイン
+    elif user_type == "parent":
+        parent = Parent.objects.filter(id=user_id).first()
+        student = Student.objects.filter(parent=parent).first()
+
+    # ===== お知らせ未読件数 =====
+    if student:
+        notice_unread_count = StudentNotice.objects.filter(
+            student=student,
+            is_read=False
+        ).count()
+
+    # ===== メール未読件数 =====
+    if parent:
+        mail_unread_count = Message.objects.filter(
+            parent_receiver=parent,
+            is_read=False
+        ).count()
+
+    return render(request, 'student_parent_menu.html', {
+        'user_type': user_type,
+        'notice_unread_count': notice_unread_count,
+        'mail_unread_count': mail_unread_count,
+    })
 
 
 # ===============================
@@ -138,6 +174,20 @@ def mail_list(request, user_type=None, user_id=None):
                 Q(teacher_sender=current_user, parent_receiver=selected_user) |
                 Q(parent_sender=selected_user, teacher_receiver=current_user)
             ).order_by('timestamp')
+
+        # ✅ 既読処理（チャットを開いたら相手からの未読を既読に）
+        if current_type in ['student', 'parent']:
+            Message.objects.filter(
+                teacher_sender=selected_user,
+                parent_receiver=current_user,
+                is_read=False
+            ).update(is_read=True)
+        else:
+            Message.objects.filter(
+                parent_sender=selected_user,
+                teacher_receiver=current_user,
+                is_read=False
+            ).update(is_read=True)
  
     # ===== メッセージ送信 =====
     if request.method == 'POST' and selected_user:
@@ -161,7 +211,6 @@ def mail_list(request, user_type=None, user_id=None):
     if current_type in ['student', 'parent']:
         users = Teacher.objects.all()
  
-        # 🔍 検索（講師名）
         if q:
             users = users.filter(name__icontains=q)
  
@@ -173,11 +222,27 @@ def mail_list(request, user_type=None, user_id=None):
                 attendance_rules__day_of_week=selected_day
             ).distinct()
  
-        # 🔍 検索（生徒名）
         if q:
             users = users.filter(
                 child_name__icontains=q
             )
+
+    # ===== 各ユーザーごとの未読件数 =====
+    for user in users:
+        if current_type in ['student', 'parent']:
+            # 親 → 先生からの未読
+            user.unread_count = Message.objects.filter(
+                teacher_sender=user,
+                parent_receiver=current_user,
+                is_read=False
+            ).count()
+        else:
+            # 先生 → 親からの未読
+            user.unread_count = Message.objects.filter(
+                parent_sender=user.parent,
+                teacher_receiver=current_user,
+                is_read=False
+            ).count()
  
     context = {
         'users': users,
@@ -191,8 +256,7 @@ def mail_list(request, user_type=None, user_id=None):
         'user_type': current_type,
     }
  
-    return render(request, 'mail_list.html', context)
- 
+    return render(request, 'mail_list.html', context) 
 
 
 def smenu_view(request):
@@ -553,17 +617,14 @@ def timeslot_list(request):
     return render(request, "app/timeslot_list.html", {
         "timeslots": timeslots
     })
-j o9u
 from .models import Student, StudentNotice
 
 
 
 def tuuchi(request):
-    # ログインチェック
     if 'user_id' not in request.session:
         return redirect('login')
 
-    # 講師以外は入れない
     if request.session.get('user_type') != 'teacher':
         messages.error(request, "権限がありません")
         return redirect('app:setting')
@@ -571,19 +632,33 @@ def tuuchi(request):
     if request.method == "POST":
         title = request.POST.get("title")
         message = request.POST.get("message")
+        is_important = bool(request.POST.get("is_important"))
+        attachment = request.FILES.get("attachment")
 
-        # ✅ アカウントを持つ生徒だけ
-        # → Parent が紐づいている生徒
+        expire_at_str = request.POST.get("expire_at")
+        expire_at = None
+        if expire_at_str:
+            expire_at = datetime.strptime(expire_at_str, "%Y-%m-%d")
+
         students = Student.objects.filter(parent__isnull=False)
 
         for student in students:
+            file_copy = None
+
+            if attachment:
+                attachment.seek(0)
+                file_copy = ContentFile(attachment.read(), name=attachment.name)
+
             StudentNotice.objects.create(
                 student=student,
                 title=title,
-                message=message
+                message=message,
+                is_important=is_important,
+                expire_at=expire_at,
+                attachment=file_copy,
             )
 
-        messages.success(request, "アカウントを作成している生徒に通知を送信しました")
+        messages.success(request, "通知を送信しました")
         return redirect("app:tuuchi")
 
     return render(request, "app/tuuchi.html")
@@ -596,20 +671,27 @@ def student_notice_list(request):
     user_type = request.session.get("user_type")
     user_id = request.session.get("user_id")
 
-    # 生徒 or 保護者のみ許可
     if user_type not in ["student", "parent"]:
         return redirect("login")
 
-    # 親アカウントから生徒を取得
     parent = get_object_or_404(Parent, id=user_id)
     student = get_object_or_404(Student, parent=parent)
 
     notices = StudentNotice.objects.filter(
         student=student
-    ).order_by("-created_at")
+    ).filter(
+        Q(expire_at__isnull=True) | Q(expire_at__gte=timezone.now())
+    ).order_by(
+        "-is_important",
+        "-created_at"
+    )
+
+    # ✅ 未読件数（必要なら表示用）
+    unread_count = notices.filter(is_read=False).count()
 
     return render(request, "app/student_notice_list.html", {
-        "notices": notices
+        "notices": notices,
+        "unread_count": unread_count,
     })
 
 
@@ -624,7 +706,6 @@ def student_notice_detail(request, notice_id):
     if user_type not in ["student", "parent"]:
         return redirect("login")
 
-    # 生徒特定（一覧と同じロジック）
     if user_type == "student":
         student = get_object_or_404(Student, id=user_id)
     else:
@@ -637,10 +718,14 @@ def student_notice_detail(request, notice_id):
         student=student
     )
 
+    # ✅ 既読にする
+    if not notice.is_read:
+        notice.is_read = True
+        notice.save()
+
     return render(request, "app/student_notice_detail.html", {
         "notice": notice
     })
-
 
 
 # ===============================
@@ -668,13 +753,18 @@ def attendance_today(request):
     attended_ids = set(attendances.values_list('student_id', flat=True))
 
     # ===============================
-    # 🔽 お知らせ（30日以内）
+    # 🔽 お知らせ（重要＋期限対応）
     # ===============================
     limit_date = timezone.now() - timedelta(days=30)
 
     notices = StudentNotice.objects.filter(
         created_at__gte=limit_date
-    ).order_by("-created_at")
+    ).filter(
+        Q(expire_at__isnull=True) | Q(expire_at__gte=timezone.now())
+    ).order_by(
+        "-is_important",   # ← 重要を上に
+        "-created_at"      # ← 新しい順
+    )
     # ===============================
 
     return render(request, "teacher_attendance_list.html", {
@@ -691,7 +781,7 @@ def notice_delete(request, notice_id):
     notice = get_object_or_404(StudentNotice, id=notice_id)
     notice.delete()
     return JsonResponse({'success': True})
-=======
+
 def timeslot_delete(request, pk):
     timeslot = get_object_or_404(TimeSlot, pk=pk)
 
