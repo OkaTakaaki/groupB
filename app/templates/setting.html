@@ -95,7 +95,12 @@ body {
           <span>時間帯管理</span>
       </a>
 
-      
+      <a href="{% url 'app:tuuchi' %}" class="settings-item">
+          <span class="icon"></span>
+          <span>通知</span>
+      </a>
+
+
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>
           <span>ログアウト</span>
@@ -123,6 +128,12 @@ body {
           <span class="icon">⏰</span>
           <span>時間帯管理</span>
       </a>
+
+        <a href="{% url 'app:tuuchi' %}" class="settings-item">
+          <span class="icon"></span>
+          <span>通知</span>
+        </a>
+
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>
           <span>ログアウト</span>

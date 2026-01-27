@@ -14,13 +14,18 @@ from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.db.models import Q
 from django import forms
-
+from django.contrib import messages
 # Local Imports
 from .models import (
     Schedule, Student, Parent, Teacher,
     Message, Notice, StudentAttendanceRule, Attendance, TimeSlot
 )
 from .forms import ScheduleForm, MessageForm
+
+#お知らせ共通処理
+from datetime import timedelta
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 
 # ===============================
@@ -520,3 +525,141 @@ def timeslot_list(request):
     return render(request, "app/timeslot_list.html", {
         "timeslots": timeslots
     })
+
+from .models import Student, StudentNotice
+
+
+
+def tuuchi(request):
+    # ログインチェック
+    if 'user_id' not in request.session:
+        return redirect('login')
+
+    # 講師以外は入れない
+    if request.session.get('user_type') != 'teacher':
+        messages.error(request, "権限がありません")
+        return redirect('app:setting')
+
+    if request.method == "POST":
+        title = request.POST.get("title")
+        message = request.POST.get("message")
+
+        # ✅ アカウントを持つ生徒だけ
+        # → Parent が紐づいている生徒
+        students = Student.objects.filter(parent__isnull=False)
+
+        for student in students:
+            StudentNotice.objects.create(
+                student=student,
+                title=title,
+                message=message
+            )
+
+        messages.success(request, "アカウントを作成している生徒に通知を送信しました")
+        return redirect("app:tuuchi")
+
+    return render(request, "app/tuuchi.html")
+
+#通知閲覧
+def student_notice_list(request):
+    if 'user_id' not in request.session:
+        return redirect("login")
+
+    user_type = request.session.get("user_type")
+    user_id = request.session.get("user_id")
+
+    # 生徒 or 保護者のみ許可
+    if user_type not in ["student", "parent"]:
+        return redirect("login")
+
+    # 親アカウントから生徒を取得
+    parent = get_object_or_404(Parent, id=user_id)
+    student = get_object_or_404(Student, parent=parent)
+
+    notices = StudentNotice.objects.filter(
+        student=student
+    ).order_by("-created_at")
+
+    return render(request, "app/student_notice_list.html", {
+        "notices": notices
+    })
+
+
+#通知詳細
+def student_notice_detail(request, notice_id):
+    if 'user_id' not in request.session:
+        return redirect("login")
+
+    user_type = request.session.get("user_type")
+    user_id = request.session.get("user_id")
+
+    if user_type not in ["student", "parent"]:
+        return redirect("login")
+
+    # 生徒特定（一覧と同じロジック）
+    if user_type == "student":
+        student = get_object_or_404(Student, id=user_id)
+    else:
+        parent = get_object_or_404(Parent, id=user_id)
+        student = get_object_or_404(Student, parent=parent)
+
+    notice = get_object_or_404(
+        StudentNotice,
+        id=notice_id,
+        student=student
+    )
+
+    return render(request, "app/student_notice_detail.html", {
+        "notice": notice
+    })
+
+
+
+# ===============================
+# お知らせ共通処理
+# ===============================
+def attendance_today(request):
+    if not request.session.get("reauth_ok"):
+        return redirect("app:qr_page")
+
+    request.session["reauth_ok"] = False
+
+    today = timezone.now().date()
+
+    weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    today_week = weekday_map[timezone.now().weekday()]
+
+    rules_today = StudentAttendanceRule.objects.select_related(
+        "student",
+        "time_slot"
+    ).filter(
+        day_of_week=today_week
+    ).order_by("time_slot__start_time")
+
+    attendances = Attendance.objects.filter(date=today)
+    attended_ids = set(attendances.values_list('student_id', flat=True))
+
+    # ===============================
+    # 🔽 お知らせ（30日以内）
+    # ===============================
+    limit_date = timezone.now() - timedelta(days=30)
+
+    notices = StudentNotice.objects.filter(
+        created_at__gte=limit_date
+    ).order_by("-created_at")
+    # ===============================
+
+    return render(request, "teacher_attendance_list.html", {
+        "rules_today": rules_today,
+        "attendances": attendances,
+        "attended_ids": attended_ids,
+        "today": today,
+        "notices": notices,   # ← これが超重要
+    })
+
+
+
+def notice_delete(request, notice_id):
+    notice = get_object_or_404(StudentNotice, id=notice_id)
+    notice.delete()
+    return JsonResponse({'success': True})

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ notice.title }}</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 22px;
+        }
+
+        .date {
+            color: #777;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 20px 0;
+        }
+
+        .message {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #333;
+        }
+
+        .back {
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .back a {
+            display: inline-block;
+            text-decoration: none;
+            color: #fff;
+            background-color: #3498db;
+            padding: 10px 16px;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .back a:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>{{ notice.title }}</h2>
+
+    <div class="date">
+        {{ notice.created_at|date:"Y年m月d日 H:i" }}
+    </div>
+
+    <hr>
+
+    <div class="message">
+        {{ notice.message|linebreaks }}
+    </div>
+
+    <div class="back">
+        <a href="{% url 'app:student_notice_list' %}">← お知らせ一覧に戻る</a>
+    </div>
+</div>
+
+</body>
+</html>
