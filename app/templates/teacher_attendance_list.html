@@ -158,4 +158,85 @@
 </a>
 
 
+<!-- ===== お知らせ ===== -->
+<div style="background:#f7f7ff; padding:15px; border-radius:12px;
+            border:1px solid #dcdcff; margin-top:30px;">
+    <h3>📢 お知らせ</h3>
+
+    {% if notices %}
+        <ul style="list-style:none; padding:0;">
+            {% for notice in notices %}
+                <li id="notice-{{ notice.id }}"
+                    style="background:white; padding:12px; margin-bottom:10px;
+                           border-radius:10px; border:1px solid #e0e0ff;
+                           display:flex; justify-content:space-between; align-items:center;">
+
+                    <a href="{% url 'app:student_notice_detail' notice.id %}"
+                       style="text-decoration:none; color:#333;">
+                        <strong>{{ notice.title }}</strong><br>
+                        <small style="color:#777;">
+                            {{ notice.created_at|date:"Y/m/d H:i" }}
+                        </small>
+                    </a>
+
+                    <button
+                        onclick="deleteNotice({{ notice.id }})"
+                        style="
+                            background:#ff6b6b;
+                            color:white;
+                            border:none;
+                            padding:6px 10px;
+                            border-radius:8px;
+                            cursor:pointer;
+                            font-size:13px;
+                        ">
+                        削除
+                    </button>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p style="color:#777;">現在お知らせはありません。</p>
+    {% endif %}
+</div>
+
+<!-- ===== JavaScript ===== -->
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function deleteNotice(noticeId) {
+    if (!confirm('このお知らせを削除しますか？')) return;
+
+    fetch(`/app/notice/delete/${noticeId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const el = document.getElementById(`notice-${noticeId}`);
+            if (el) el.remove(); // ← 画面遷移なしで削除
+        } else {
+            alert('削除に失敗しました');
+        }
+    })
+    .catch(() => alert('通信エラー'));
+}
+</script>
+
 {% endblock %}

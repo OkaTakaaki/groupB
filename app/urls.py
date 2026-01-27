@@ -4,6 +4,7 @@ from . import views
 app_name = 'app'
 
 urlpatterns = [
+    
     path("attendance/today/", views.attendance_today, name="attendance_today"),
     path('student_parent/menu/', views.student_parent_menu, name='student_parent_menu'),
     path('student_information/', views.student_information, name='student_information'),
@@ -13,10 +14,15 @@ urlpatterns = [
     path('schedule/new/', views.ScheduleCreateView.as_view(), name='schedule_create'),
     path('schedule/<int:pk>/edit/', views.ScheduleUpdateView.as_view(), name='schedule_edit'),
     path('schedule/<int:pk>/delete/', views.ScheduleDeleteView.as_view(), name='schedule_delete'),
+    path("student/notices/", views.student_notice_list, name="student_notice_list"),
+    path("student/notices/<int:notice_id>/",views.student_notice_detail,name="student_notice_detail"),
     path("setting", views.setting, name="setting"),
     path("mail_list/", views.mail_list, name="mail_list"),
     path("mail/<int:user_id>/", views.mail_list, name="mail_detail"), 
+   
+    path('notice/delete/<int:notice_id>/',views.notice_delete,name='notice_delete'),
     path('smenu', views.smenu_view, name='smenu'),
+    path("tuuchi/", views.tuuchi, name="tuuchi"),
     path('osirase/', views.osirase, name='osirase'),
     path("qr/", views.qr_page, name="qr_page"),
     path("qr/scan/", views.qr_attendance, name="qr_attendance"),
