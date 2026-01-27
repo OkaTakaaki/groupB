@@ -731,50 +731,67 @@ def student_notice_detail(request, notice_id):
 # ===============================
 # お知らせ共通処理
 # ===============================
+
 def attendance_today(request):
     if not request.session.get("reauth_ok"):
         return redirect("app:qr_page")
 
-    request.session["reauth_ok"] = False
+    # request.session["reauth_ok"] = False
 
     today = timezone.now().date()
 
     weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     today_week = weekday_map[timezone.now().weekday()]
 
+    # 選択された時間帯を取得
+    selected_slot = request.GET.get("slot")
+    if selected_slot:
+        try:
+            selected_slot = int(selected_slot)
+        except ValueError:
+            selected_slot = None
+
+    # 出席ルールを取得
     rules_today = StudentAttendanceRule.objects.select_related(
         "student",
         "time_slot"
-    ).filter(
-        day_of_week=today_week
-    ).order_by("time_slot__start_time")
+    ).filter(day_of_week=today_week)
 
+    # ✅ 時間帯で絞り込み
+    if selected_slot:
+        rules_today = rules_today.filter(time_slot_id=selected_slot)
+
+    rules_today = rules_today.order_by("time_slot__start_time")
+
+    # 出席済みの生徒ID
     attendances = Attendance.objects.filter(date=today)
     attended_ids = set(attendances.values_list('student_id', flat=True))
 
-    # ===============================
-    # 🔽 お知らせ（重要＋期限対応）
-    # ===============================
-    limit_date = timezone.now() - timedelta(days=30)
+    # 時間帯ボタン用
+    time_slots_today = TimeSlot.objects.filter(
+        studentattendancerule__day_of_week=today_week
+    ).distinct().order_by("start_time")
 
+    # お知らせ（重要＋期限対応）
+    limit_date = timezone.now() - timedelta(days=30)
     notices = StudentNotice.objects.filter(
         created_at__gte=limit_date
     ).filter(
         Q(expire_at__isnull=True) | Q(expire_at__gte=timezone.now())
     ).order_by(
-        "-is_important",   # ← 重要を上に
-        "-created_at"      # ← 新しい順
+        "-is_important",
+        "-created_at"
     )
-    # ===============================
 
     return render(request, "teacher_attendance_list.html", {
         "rules_today": rules_today,
         "attendances": attendances,
         "attended_ids": attended_ids,
         "today": today,
-        "notices": notices,   # ← これが超重要
+        "notices": notices,
+        "time_slots_today": time_slots_today,
+        "selected_slot": selected_slot,
     })
-
 
 
 def notice_delete(request, notice_id):

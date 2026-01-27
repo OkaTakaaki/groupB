@@ -65,8 +65,8 @@
                 text-decoration:none;
                 font-size:13px;
                 font-weight:bold;
-                background:{% if selected_slot == slot.id|stringformat:'s' %}#5C82B8{% else %}#e0e0e0{% endif %};
-                color:{% if selected_slot == slot.id|stringformat:'s' %}white{% else %}#333{% endif %};
+                background:{% if selected_slot == slot.id %}#5C82B8{% else %}#e0e0e0{% endif %};
+                color:{% if selected_slot == slot.id %}white{% else %}#333{% endif %};
                ">
                 {{ slot.name }}
             </a>
@@ -164,7 +164,6 @@
 
 </div> <!-- left-area end -->
 
-
 <!-- ================== 右カラム（お知らせ） ================== -->
 <div class="right-area">
 
@@ -212,7 +211,6 @@
 </div> <!-- right-area end -->
 
 </div> <!-- page-layout end -->
-
 
 <!-- ===== JavaScript ===== -->
 <script>
