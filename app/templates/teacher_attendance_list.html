@@ -10,6 +10,39 @@
 <div style="background:#f0f4ff; padding:15px; border-radius:10px; margin-bottom:25px;">
     <h3 style="margin-top:0;">【今日の出席予定者】</h3>
 
+    <!-- ===== 時間帯フィルターボタン ===== -->
+    <div style="margin-bottom:15px; display:flex; flex-wrap:wrap; gap:8px;">
+
+        <!-- 全件ボタン -->
+        <a href="?"
+           style="
+            padding:6px 14px;
+            border-radius:20px;
+            text-decoration:none;
+            font-size:13px;
+            font-weight:bold;
+            background:{% if not selected_slot %}#5C82B8{% else %}#e0e0e0{% endif %};
+            color:{% if not selected_slot %}white{% else %}#333{% endif %};
+           ">
+            全て
+        </a>
+
+        {% for slot in time_slots_today %}
+            <a href="?slot={{ slot.id }}"
+               style="
+                padding:6px 14px;
+                border-radius:20px;
+                text-decoration:none;
+                font-size:13px;
+                font-weight:bold;
+                background:{% if selected_slot == slot.id|stringformat:'s' %}#5C82B8{% else %}#e0e0e0{% endif %};
+                color:{% if selected_slot == slot.id|stringformat:'s' %}white{% else %}#333{% endif %};
+               ">
+                {{ slot.name }}
+            </a>
+        {% endfor %}
+    </div>
+
     {% if rules_today %}
         <ul style="list-style:none; padding:0;">
             {% for rule in rules_today %}
@@ -42,7 +75,7 @@
             {% endfor %}
         </ul>
     {% else %}
-        <p>本日の出席予定者はいません。</p>
+        <p>該当する出席予定者はいません。</p>
     {% endif %}
 
 </div>
@@ -104,9 +137,22 @@
 
 <!-- ================== QRボタン ================== -->
 <a href="{% url 'app:qr_page' %}"
-   style="display:flex; flex-direction:column; align-items:center;
-          background:#5C82B8; color:white; padding:12px; border-radius:12px;
-          text-decoration:none; margin-top:25px;">
+   style="
+        position: fixed;
+        bottom: 100px;   /* ← フッターより上に固定 */
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #5C82B8;
+        color: white;
+        padding: 14px 28px;
+        border-radius: 40px;
+        text-decoration: none;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.25);
+        z-index: 2000;
+   ">
     <span class="icon">📱</span>
     <div>QRから出席登録へ</div>
 </a>
@@ -192,7 +238,5 @@ function deleteNotice(noticeId) {
     .catch(() => alert('通信エラー'));
 }
 </script>
-
-
 
 {% endblock %}

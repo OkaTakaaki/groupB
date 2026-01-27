@@ -96,18 +96,18 @@ def setting(request):
 def mail_list(request, user_type=None, user_id=None):
     if 'user_id' not in request.session:
         return redirect('login')
-
+ 
     current_type = request.session['user_type']
     current_id = request.session['user_id']
-
+ 
     if current_type in ['student', 'parent']:
         current_user = get_object_or_404(Parent, id=current_id)
     else:
         current_user = get_object_or_404(Teacher, id=current_id)
-
+ 
     selected_day = request.GET.get("day")
-
-    # 曜日一覧
+    q = request.GET.get("q")
+ 
     weekdays = [
         ("Mon", "月曜日"),
         ("Tue", "火曜日"),
@@ -117,17 +117,17 @@ def mail_list(request, user_type=None, user_id=None):
         ("Sat", "土曜日"),
         ("Sun", "日曜日"),
     ]
-
+ 
     selected_user = None
     messages = []
-
+ 
     # ===== チャット相手 =====
     if user_id:
         if current_type in ['student', 'parent']:
             selected_user = get_object_or_404(Teacher, id=user_id)
         else:
             selected_user = get_object_or_404(Parent, id=user_id)
-
+ 
         if current_type in ['student', 'parent']:
             messages = Message.objects.filter(
                 Q(parent_sender=current_user, teacher_receiver=selected_user) |
@@ -138,37 +138,47 @@ def mail_list(request, user_type=None, user_id=None):
                 Q(teacher_sender=current_user, parent_receiver=selected_user) |
                 Q(parent_sender=selected_user, teacher_receiver=current_user)
             ).order_by('timestamp')
-
+ 
     # ===== メッセージ送信 =====
     if request.method == 'POST' and selected_user:
         form = MessageForm(request.POST)
         if form.is_valid():
             msg = form.save(commit=False)
-
+ 
             if current_type in ['student', 'parent']:
                 msg.parent_sender = current_user
                 msg.teacher_receiver = selected_user
             else:
                 msg.teacher_sender = current_user
                 msg.parent_receiver = selected_user
-
+ 
             msg.save()
             return redirect('app:mail_detail', user_id=user_id)
     else:
         form = MessageForm()
-
+ 
     # ===== 左サイドのユーザー一覧 =====
     if current_type in ['student', 'parent']:
-        # 生徒・保護者 → 講師一覧
         users = Teacher.objects.all()
+ 
+        # 🔍 検索（講師名）
+        if q:
+            users = users.filter(name__icontains=q)
+ 
     else:
-        # 講師 → 生徒一覧（曜日フィルタあり）
         users = Student.objects.all()
+ 
         if selected_day:
             users = users.filter(
                 attendance_rules__day_of_week=selected_day
             ).distinct()
-
+ 
+        # 🔍 検索（生徒名）
+        if q:
+            users = users.filter(
+                child_name__icontains=q
+            )
+ 
     context = {
         'users': users,
         'selected_day': selected_day,
@@ -177,11 +187,12 @@ def mail_list(request, user_type=None, user_id=None):
         'messages': messages,
         'form': form,
         'current_user': current_user,
-        'is_student': current_type == 'student'
+        'is_student': current_type == 'student',
+        'user_type': current_type,
     }
-
+ 
     return render(request, 'mail_list.html', context)
-
+ 
 
 
 def smenu_view(request):
@@ -423,19 +434,34 @@ def attendance_today(request):
     if not request.session.get("reauth_ok"):
         return redirect("app:qr_page")
 
-    request.session["reauth_ok"] = False
+    # request.session["reauth_ok"] = False
 
     today = timezone.now().date()
 
     weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     today_week = weekday_map[timezone.now().weekday()]
 
+    # ✅ 追加：選択された時間帯
+    selected_slot = request.GET.get("slot")
+
     rules_today = StudentAttendanceRule.objects.select_related(
         "student",
         "time_slot"
     ).filter(
         day_of_week=today_week
-    ).order_by("time_slot__start_time")
+    )
+
+    # ✅ 追加：時間帯で絞り込み
+    if selected_slot:
+        rules_today = rules_today.filter(time_slot_id=selected_slot)
+
+    rules_today = rules_today.order_by("time_slot__start_time")
+
+    # ✅ 時間帯ボタン用（重複なし）
+    time_slots_today = TimeSlot.objects.filter(
+        studentattendancerule__day_of_week=today_week
+    ).distinct().order_by("start_time")
+
 
 
     transfer_schedules = Schedule.objects.filter(
@@ -458,6 +484,8 @@ def attendance_today(request):
 
     return render(request, "teacher_attendance_list.html", {
     "rules_today": rules_today,
+    "time_slots_today": time_slots_today,
+    "selected_slot": selected_slot, 
     "transfer_students": transfer_students,
     "attendances": attendances,
     "attended_ids": attended_ids,
@@ -525,7 +553,7 @@ def timeslot_list(request):
     return render(request, "app/timeslot_list.html", {
         "timeslots": timeslots
     })
-
+j o9u
 from .models import Student, StudentNotice
 
 
@@ -663,3 +691,14 @@ def notice_delete(request, notice_id):
     notice = get_object_or_404(StudentNotice, id=notice_id)
     notice.delete()
     return JsonResponse({'success': True})
+=======
+def timeslot_delete(request, pk):
+    timeslot = get_object_or_404(TimeSlot, pk=pk)
+
+    if request.method == "POST":
+        timeslot.delete()
+        return redirect("app:timeslot_list")
+
+    return render(request, "app/timeslot_confirm_delete.html", {
+        "timeslot": timeslot
+    })

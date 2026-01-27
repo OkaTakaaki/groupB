@@ -29,4 +29,5 @@ urlpatterns = [
     path("verify-password/", views.verify_password, name="verify_password"),
     path("timeslots/", views.timeslot_list, name="timeslot_list"),
     path("timeslots/create/", views.timeslot_create, name="timeslot_create"),
+    path("timeslot/<int:pk>/delete/", views.timeslot_delete, name="timeslot_delete"),
 ] 

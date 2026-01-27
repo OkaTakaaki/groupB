@@ -51,19 +51,19 @@
         vertical-align: top;
         padding: 0;
     }
-
+ 
     .sun { color: red; }
     .sat { color: blue; }
-
-    .not-current-month { 
+ 
+    .not-current-month {
         background-color: #f0f0f5;
         color: #999;
     }
-
-    .is-today { 
-        background-color: #e6f7ff; 
+ 
+    .is-today {
+        background-color: #e6f7ff;
     }
-
+ 
     /* セル全体をリンクに */
     .day-cell-link {
         display: block;
@@ -106,13 +106,13 @@
     .status-振替 { background-color: #FF9800; }
     .status-中止 { background-color: #9E9E9E; }
 </style>
-
-
+ 
+ 
 <div class="calendar-container">
-
+ 
     <!-- ★ 年月 -->
     <div class="month-title">{{ year }}年 {{ month }}月</div>
-
+ 
     <!-- ★ 前月 / 次月 -->
     <div class="nav-row">
         <a href="{{ prev_month_url }}" class="nav-btn">&lt; 前の月</a>
@@ -171,16 +171,8 @@
                 {% endif %}
             {% endfor %}
         </tbody>
-
+ 
     </table>
-</div>
-
-<!-- 新規スケジュールボタン -->
-<div style="text-align:center;margin-top:20px;">
-    <a href="{% url 'app:schedule_create' %}"
-       style="padding:10px 20px;background:#5C82B8;color:white;border-radius:6px;text-decoration:none;">
-        + 新規スケジュール
-    </a>
-</div>
-
+</div> 
 {% endblock %}
+ 
