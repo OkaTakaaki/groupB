@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}講師追加{% endblock %}
+
+{% block content %}
+<style>
+  /* ===============================
+     共通レイアウト
+  =============================== */
+  .wrap {
+    width: min(820px, 96vw);
+    margin: 16px auto 40px;
+    padding: 18px 18px 22px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.10);
+  }
+  
+  .top {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 900;
+    margin: 6px 0 14px;
+  }
+  
+  .sub {
+    text-align: center;
+    font-weight: 900;
+    color: #445;
+    margin-bottom: 14px;
+  }
+  
+  /* ===============================
+     検索エリア
+  =============================== */
+  .search {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  
+  .search input {
+    flex: 1;
+    min-width: 220px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #d3d7de;
+    outline: none;
+  }
+  
+  /* ===============================
+     ボタン
+  =============================== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 900;
+    cursor: pointer;
+    background: #5C82B8;
+    color: #fff;
+    text-decoration: none;
+  }
+  
+  .btn:hover {
+    filter: brightness(0.96);
+  }
+  
+  .btn-gray {
+    background: #777;
+  }
+  
+  /* ===============================
+     講師リスト
+  =============================== */
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #fff;
+    border: 1px solid #e3e8f3;
+    border-radius: 12px;
+  }
+  
+  .name {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-weight: 900;
+    color: #223;
+  }
+  
+  .tag {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 900;
+    color: #405;
+    background: #eef2ff;
+    border-radius: 999px;
+  }
+  
+  /* ===============================
+     戻るボタン（下固定）
+  =============================== */
+  .back-fixed {
+    position: fixed;
+    bottom: 72px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  
+  .btn-back {
+    pointer-events: auto;
+    padding: 14px 30px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+    color: #fff;
+    font-weight: 900;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-back:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+    filter: brightness(1.06);
+  }
+  </style>
+  
+
+<div class="wrap">
+  <div class="top">講師追加</div>
+
+  <div class="sub">
+    対象日：{{ schedule.date|date:"Y年n月j日 (D)" }} /
+    <!-- ✅ 現在の担当（複数）を表示：teacher_links は views.py から渡している -->
+    現在の担当：
+    {% for tlink in teacher_links %}
+      {{ tlink.teacher.name }}{% if not forloop.last %}, {% endif %}
+    {% empty %}
+      未設定
+    {% endfor %}
+    <!-- 任意：登録済み人数を出したい場合 -->
+    （登録済み：{{ already_count }}人）
+  </div>
+
+  <!-- 🔍 検索 -->
+  <form method="get" class="search">
+    <input type="text" name="q" value="{{ q }}" placeholder="講師名 / login_id / 権限で検索">
+    <button class="btn" type="submit">検索</button>
+    {% if q %}
+      <a class="btn btn-gray" href="{% url 'app:schedule_teacher_add' schedule.id %}">クリア</a>
+    {% endif %}
+  </form>
+
+  <!-- ✅ 未登録の講師だけが teachers に入っているので「担当中」判定は不要 -->
+  {% for t in teachers %}
+    <div class="row">
+      <div class="name">
+        <span>{{ t.name }}</span>
+        <span class="tag">{{ t.permission_level }}</span>
+        <span class="tag">{{ t.login_id }}</span>
+      </div>
+
+      <!-- ✅ 追加（中間モデルへ登録） -->
+      <form method="post" style="margin:0;">
+        {% csrf_token %}
+        <input type="hidden" name="teacher_id" value="{{ t.id }}">
+        <button class="btn" type="submit">追加する</button>
+      </form>
+    </div>
+  {% empty %}
+    <div style="text-align:center;color:#667; font-weight:900; padding:12px;">
+      追加できる講師がいません
+    </div>
+  {% endfor %}
+</div>
+
+<div class="back-fixed">
+  <a class="btn-back" href="{% url 'app:schedule_students' schedule.id %}">
+    ← 予定の画面に戻る
+  </a>
+</div>
+{% endblock %}

@@ -218,6 +218,81 @@ class Teacher(models.Model):
     def __str__(self):
         return f"{self.name} ({self.permission_level})"
 
+# =========================
+# スケジュール × 生徒（中間モデル）
+# =========================
+class ScheduleStudent(models.Model):
+    """
+    1つのScheduleの中で、生徒ごとの状態（出席/欠席/振替など）を保存する中間モデル
+    """
+
+    STATUS_CHOICES = [
+        ('予定', '予定'),
+        ('出席', '出席'),
+        ('欠席', '欠席'),
+        ('振替', '振替'),
+        ('中止', '中止'),
+    ]
+
+    schedule = models.ForeignKey(
+        "Schedule",
+        on_delete=models.CASCADE,
+        related_name="student_links",
+        verbose_name="スケジュール"
+    )
+    student = models.ForeignKey(
+        "Student",
+        on_delete=models.CASCADE,
+        related_name="schedule_links",
+        verbose_name="生徒"
+    )
+
+    # 生徒ごとの状態（ここがポイント）
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='予定',
+        verbose_name="生徒ステータス"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="登録日時")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
+
+    class Meta:
+        db_table = "schedule_students"
+        unique_together = ("schedule", "student")
+        verbose_name = "スケジュール生徒"
+        verbose_name_plural = "スケジュール生徒一覧"
+
+    def __str__(self):
+        return f"{self.student.child_name} - {self.schedule_id} ({self.status})"
+
+# 講師中間モデル
+class ScheduleTeacher(models.Model):
+    """
+    スケジュールと講師を多対多で結びつける中間モデル。
+    1つの授業に複数の講師を登録できるようにするためのテーブル。
+    """
+
+    # どのスケジュールか
+    schedule = models.ForeignKey(
+        "Schedule",
+        on_delete=models.CASCADE
+    )
+
+    # どの講師か
+    teacher = models.ForeignKey(
+        "Teacher",
+        on_delete=models.CASCADE
+    )
+
+    class Meta:
+        # 同じ授業に同じ講師を二重登録させない
+        unique_together = ("schedule", "teacher")
+
+    def __str__(self):
+        return f"{self.schedule} - {self.teacher}"
+
 
 # =========================
 # 授業スケジュール（振替・特別授業）
@@ -234,18 +309,25 @@ class Schedule(models.Model):
     date = models.DateField(verbose_name="授業日")
     start_time = models.TimeField(verbose_name="開始時刻")
     end_time = models.TimeField(verbose_name="終了時刻")
+    title = models.CharField("予定名", max_length=50, default="授業予定")
 
+
+ 
     teacher = models.ForeignKey(
         Teacher,
-        on_delete=models.CASCADE,
-        verbose_name="担当講師",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="schedules"
     )
+
 
     students = models.ManyToManyField(
         Student,
         verbose_name="生徒（複数）",
-        related_name="schedules"
+        related_name="schedules",
+        through="ScheduleStudent",
+        blank=True
     )
 
     status = models.CharField(
@@ -271,6 +353,7 @@ class Schedule(models.Model):
     def __str__(self):
         student_names = ", ".join(s.child_name for s in self.students.all())
         return f"{self.date} {self.start_time}-{self.end_time} / {student_names} ({self.status})"
+
 
 # =========================
 # メッセージ（チャット）

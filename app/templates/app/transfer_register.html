@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}振替登録{% endblock %}
+
+{% block content %}
+<style>
+  .wrap{
+    width: min(620px, 96vw);
+    margin: 18px auto 40px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+    padding: 22px;
+    text-align: center;
+  }
+  .title{
+    font-weight: 900;
+    font-size: 22px;
+    margin-bottom: 14px;
+  }
+  .box{
+    border: 1px solid #dbe5ff;
+    background: #f7faff;
+    border-radius: 12px;
+    padding: 14px;
+    margin: 14px 0;
+    font-weight: 900;
+  }
+  .arrow{
+    font-size: 40px;
+    margin: 10px 0;
+  }
+  .field{
+    display: grid;
+    gap: 10px;
+    margin: 14px 0;
+    justify-items: center;
+  }
+  input, select{
+    width: min(360px, 92vw);
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #d3d7de;
+    font-size: 15px;
+  }
+  .btn{
+    border:none;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-weight: 900;
+    cursor: pointer;
+    background:#5C82B8;
+    color:#fff;
+  }
+  .btn-gray{ background:#777; text-decoration:none; display:inline-block; }
+  .err{
+    background:#ffecec;
+    border:1px solid #f5c2c7;
+    padding:10px;
+    border-radius:10px;
+    font-weight:900;
+    color:#b00020;
+    margin-bottom: 12px;
+  }
+</style>
+
+<div class="wrap">
+  <div class="title">{{ student.child_name }}さん　振替登録</div>
+
+  {% if error %}
+    <div class="err">{{ error }}</div>
+  {% endif %}
+
+  <!-- 振替元 -->
+  <div class="box">
+    {{ original.date|date:"Y年n月j日" }}<br>
+    {{ original.start_time|time:"H:i" }}〜{{ original.end_time|time:"H:i" }}
+  </div>
+
+  <div class="arrow">⬇</div>
+
+  <!-- 振替先入力 -->
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="field">
+        <input type="date"
+        name="new_date"
+        min="{{ original.date|date:'Y-m-d' }}"
+        required>
+ 
+
+      <select name="time_slot" required>
+        <option value="">時間帯を選択</option>
+        {% for slot in time_slots %}
+          <option value="{{ slot.id }}">
+            {{ slot.name }}（{{ slot.start_time|time:"H:i" }}〜{{ slot.end_time|time:"H:i" }}）
+          </option>
+        {% endfor %}
+      </select>
+
+      <button class="btn" type="submit">振替を登録する</button>
+
+      <!-- 戻る（元の授業に戻す） -->
+      <a class="btn btn-gray" href="{% url 'app:schedule_students' original.id %}">
+        戻る
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

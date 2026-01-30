@@ -23,4 +23,14 @@ urlpatterns = [
     path("verify-password/", views.verify_password, name="verify_password"),
     path("timeslots/", views.timeslot_list, name="timeslot_list"),
     path("timeslots/create/", views.timeslot_create, name="timeslot_create"),
+     # ✅ 予定（Schedule）に紐づく 生徒一覧ページ
+    path("schedule/<int:pk>/students/", views.schedule_students, name="schedule_students"),
+    # 生徒を追加
+    path("schedule/<int:pk>/students/add/", views.schedule_student_add, name="schedule_student_add"),
+    # 講師追加
+    path("schedule/<int:pk>/teachers/add/", views.schedule_teacher_add, name="schedule_teacher_add"),
+     # ✅ 振替登録ページ（元の授業 schedule と 対象の student を指定）
+    path("schedule/<int:pk>/students/<int:student_id>/transfer/",views.transfer_register,name="transfer_register"),
+
+
 ] 
