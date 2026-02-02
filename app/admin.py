@@ -9,6 +9,7 @@ from .models import (
     StudentAttendanceRule,
     Attendance,
     ScheduleStudent,
+    StudentNotice
 )
 
 # =========================
@@ -76,6 +77,7 @@ class StudentAttendanceRuleAdmin(admin.ModelAdmin):
     ordering = ("student", "day_of_week")
 
 
+
 # =========================
 # 講師モデル
 # =========================
@@ -92,16 +94,33 @@ class TeacherAdmin(admin.ModelAdmin):
 
 
 # =========================
+# スケジュールモデル
+# =========================
+@admin.register(Schedule)
+class ScheduleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'date', 'start_time', 'end_time', 'teacher', 'student_names')
+
+    def student_names(self, obj):
+        return ", ".join(s.child_name for s in obj.students.all())
+    student_names.short_description = '生徒氏名'
+
+
+# =========================
 # メッセージモデル
 # =========================
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    """
-    チャット（Message）を管理する管理画面設定。
-    """
-    list_display = ("id", "sender_name", "receiver_name", "content_snippet", "timestamp")
-    search_fields = ("content",)
-    ordering = ("-timestamp",)
+    list_display = (
+        'id',
+        'sender_name',
+        'receiver_name',
+        'content_snippet',
+        'is_read',  
+        'timestamp',
+    )
+
+    list_filter = ('is_read', 'timestamp')
+    search_fields = ('content',)
 
     def sender_name(self, obj):
         """送信者（親or講師）を表示"""
@@ -131,6 +150,7 @@ class TimeSlotAdmin(admin.ModelAdmin):
     """
     list_display = ("id", "name", "start_time", "end_time")
     ordering = ("start_time",)
+
 
 
 # =========================
@@ -195,3 +215,51 @@ class ScheduleAdmin(admin.ModelAdmin):
         """
         return ", ".join(s.child_name for s in obj.students.all())
     student_names.short_description = "生徒氏名"
+    list_display = ('id', 'student', 'date', 'time_slot', 'status')
+    list_filter = ('date', 'status')
+    search_fields = ('student__child_name',)
+    ordering = ('-date', 'student')
+
+
+# =========================
+# 生徒お知らせモデル（⭐重要・期限・添付対応）
+# =========================
+@admin.register(StudentNotice)
+class StudentNoticeAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "student",
+        "title",
+        "is_important",     # ⭐ 追加
+        "expire_at",        # ⭐ 追加
+        "is_read",
+        "created_at",
+    )
+
+    list_filter = (
+        "is_important",
+        "is_read",
+        "expire_at",
+        "created_at",
+    )
+
+    search_fields = (
+        "title",
+        "message",
+        "student__child_name",
+    )
+
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)
+
+    fieldsets = (
+        ("基本情報", {
+            "fields": ("student", "title", "message", "attachment")
+        }),
+        ("公開設定", {
+            "fields": ("is_important", "expire_at")
+        }),
+        ("状態", {
+            "fields": ("is_read", "created_at")
+        }),
+    )

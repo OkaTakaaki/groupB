@@ -1,28 +1,33 @@
-from datetime import date, timedelta, datetime, time
+from datetime import date, datetime, timedelta
 import calendar
 import locale
 import jpholiday
 
 # Django
-from django.contrib.auth.hashers import check_password
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
-from django.views.generic import TemplateView, FormView, UpdateView, DeleteView, CreateView
-from django.urls import reverse_lazy, reverse
+from django.views.generic import CreateView, UpdateView, DeleteView
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.db.models import Q
+from django.contrib import messages
+from django.contrib.auth.hashers import check_password
+from django.core.files.base import ContentFile
 from django import forms
 from django.views.decorators.http import require_http_methods
 
-# Local Imports
+# Models
 from .models import (
     Schedule, Student, Parent, Teacher,
-    Message, Notice, StudentAttendanceRule, Attendance, TimeSlot, 
-    ScheduleStudent, ScheduleTeacher,  # ✅ 追加
+    Message, StudentAttendanceRule, Attendance,
+    TimeSlot, StudentNotice,ScheduleStudent, ScheduleTeacher
 )
+
+# Forms
 from .forms import ScheduleForm, MessageForm
+
 
 
 # ===============================
@@ -30,18 +35,52 @@ from .forms import ScheduleForm, MessageForm
 # ===============================
 def student_parent_menu(request):
     user_type = request.session.get('user_type')
-    return render(request, 'student_parent_menu.html', {'user_type': user_type})
+    user_id = request.session.get('user_id')
+
+    notice_unread_count = 0
+    mail_unread_count = 0
+    student = None
+    parent = None
+
+    # 生徒ログイン
+    if user_type == "student":
+        student = Student.objects.filter(id=user_id).first()
+        parent = student.parent if student else None
+
+    # 保護者ログイン
+    elif user_type == "parent":
+        parent = Parent.objects.filter(id=user_id).first()
+        student = Student.objects.filter(parent=parent).first()
+
+    # ===== お知らせ未読件数 =====
+    if student:
+        notice_unread_count = StudentNotice.objects.filter(
+            student=student,
+            is_read=False
+        ).count()
+
+    # ===== メール未読件数 =====
+    if parent:
+        mail_unread_count = Message.objects.filter(
+            parent_receiver=parent,
+            is_read=False
+        ).count()
+
+    return render(request, 'student_parent_menu.html', {
+        'user_type': user_type,
+        'notice_unread_count': notice_unread_count,
+        'mail_unread_count': mail_unread_count,
+    })
 
 
 # ===============================
-# 生徒一覧（曜日フィルター対応）
+# 生徒一覧
 # ===============================
 def student_information(request):
-    if 'user_id' not in request.session:
-        return redirect('login')
+    if "user_id" not in request.session:
+        return redirect("login")
 
-    selected_day = request.GET.get("day")   # Mon / Tue ...
-
+    selected_day = request.GET.get("day")
     students = Student.objects.all()
 
     if selected_day:
@@ -49,9 +88,9 @@ def student_information(request):
             attendance_rules__day_of_week=selected_day
         ).distinct()
 
-    return render(request, 'student_information.html', {
-        'students': students,
-        'selected_day': selected_day,
+    return render(request, "student_information.html", {
+        "students": students,
+        "selected_day": selected_day,
     })
 
 
@@ -93,24 +132,38 @@ def setting(request):
 def mail_list(request, user_type=None, user_id=None):
     if 'user_id' not in request.session:
         return redirect('login')
-
+ 
     current_type = request.session['user_type']
     current_id = request.session['user_id']
-
+ 
     if current_type in ['student', 'parent']:
         current_user = get_object_or_404(Parent, id=current_id)
     else:
         current_user = get_object_or_404(Teacher, id=current_id)
-
+ 
+    selected_day = request.GET.get("day")
+    q = request.GET.get("q")
+ 
+    weekdays = [
+        ("Mon", "月曜日"),
+        ("Tue", "火曜日"),
+        ("Wed", "水曜日"),
+        ("Thu", "木曜日"),
+        ("Fri", "金曜日"),
+        ("Sat", "土曜日"),
+        ("Sun", "日曜日"),
+    ]
+ 
     selected_user = None
     messages = []
-
+ 
+    # ===== チャット相手 =====
     if user_id:
         if current_type in ['student', 'parent']:
             selected_user = get_object_or_404(Teacher, id=user_id)
         else:
             selected_user = get_object_or_404(Parent, id=user_id)
-
+ 
         if current_type in ['student', 'parent']:
             messages = Message.objects.filter(
                 Q(parent_sender=current_user, teacher_receiver=selected_user) |
@@ -122,45 +175,88 @@ def mail_list(request, user_type=None, user_id=None):
                 Q(parent_sender=selected_user, teacher_receiver=current_user)
             ).order_by('timestamp')
 
-    # メッセージ送信
+        # ✅ 既読処理（チャットを開いたら相手からの未読を既読に）
+        if current_type in ['student', 'parent']:
+            Message.objects.filter(
+                teacher_sender=selected_user,
+                parent_receiver=current_user,
+                is_read=False
+            ).update(is_read=True)
+        else:
+            Message.objects.filter(
+                parent_sender=selected_user,
+                teacher_receiver=current_user,
+                is_read=False
+            ).update(is_read=True)
+ 
+    # ===== メッセージ送信 =====
     if request.method == 'POST' and selected_user:
         form = MessageForm(request.POST)
         if form.is_valid():
             msg = form.save(commit=False)
-
+ 
             if current_type in ['student', 'parent']:
                 msg.parent_sender = current_user
                 msg.teacher_receiver = selected_user
             else:
                 msg.teacher_sender = current_user
                 msg.parent_receiver = selected_user
-
+ 
             msg.save()
             return redirect('app:mail_detail', user_id=user_id)
     else:
         form = MessageForm()
-
-    # ユーザー一覧
-    query = request.GET.get('q', '')
+ 
+    # ===== 左サイドのユーザー一覧 =====
     if current_type in ['student', 'parent']:
         users = Teacher.objects.all()
-        if query:
-            users = users.filter(name__icontains=query)
+ 
+        if q:
+            users = users.filter(name__icontains=q)
+ 
     else:
-        users = Parent.objects.all()
-        if query:
-            users = users.filter(name__icontains=query)
+        users = Student.objects.all()
+ 
+        if selected_day:
+            users = users.filter(
+                attendance_rules__day_of_week=selected_day
+            ).distinct()
+ 
+        if q:
+            users = users.filter(
+                child_name__icontains=q
+            )
 
+    # ===== 各ユーザーごとの未読件数 =====
+    for user in users:
+        if current_type in ['student', 'parent']:
+            # 親 → 先生からの未読
+            user.unread_count = Message.objects.filter(
+                teacher_sender=user,
+                parent_receiver=current_user,
+                is_read=False
+            ).count()
+        else:
+            # 先生 → 親からの未読
+            user.unread_count = Message.objects.filter(
+                parent_sender=user.parent,
+                teacher_receiver=current_user,
+                is_read=False
+            ).count()
+ 
     context = {
         'users': users,
+        'selected_day': selected_day,
+        'weekdays': weekdays,
         'selected_user': selected_user,
         'messages': messages,
         'form': form,
         'current_user': current_user,
-        'is_student': current_type == 'student'
+        'is_student': current_type == 'student',
+        'user_type': current_type,
     }
-
-    return render(request, 'mail_list.html', context)
+ 
+    return render(request, 'mail_list.html', context) 
 
 
 def smenu_view(request):
@@ -467,19 +563,34 @@ def attendance_today(request):
     if not request.session.get("reauth_ok"):
         return redirect("app:qr_page")
 
-    request.session["reauth_ok"] = False
+    # request.session["reauth_ok"] = False
 
     today = timezone.now().date()
 
     weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     today_week = weekday_map[timezone.now().weekday()]
 
+    # ✅ 追加：選択された時間帯
+    selected_slot = request.GET.get("slot")
+
     rules_today = StudentAttendanceRule.objects.select_related(
         "student",
         "time_slot"
     ).filter(
         day_of_week=today_week
-    ).order_by("time_slot__start_time")
+    )
+
+    # ✅ 追加：時間帯で絞り込み
+    if selected_slot:
+        rules_today = rules_today.filter(time_slot_id=selected_slot)
+
+    rules_today = rules_today.order_by("time_slot__start_time")
+
+    # ✅ 時間帯ボタン用（重複なし）
+    time_slots_today = TimeSlot.objects.filter(
+        studentattendancerule__day_of_week=today_week
+    ).distinct().order_by("start_time")
+
 
 
     transfer_schedules = Schedule.objects.filter(
@@ -502,6 +613,8 @@ def attendance_today(request):
 
     return render(request, "teacher_attendance_list.html", {
     "rules_today": rules_today,
+    "time_slots_today": time_slots_today,
+    "selected_slot": selected_slot, 
     "transfer_students": transfer_students,
     "attendances": attendances,
     "attended_ids": attended_ids,
@@ -832,4 +945,196 @@ def transfer_register(request, pk, student_id):
         "original": original_schedule,
         "student": student,
         "time_slots": time_slots,
+    })
+from .models import Student, StudentNotice
+
+
+
+def tuuchi(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
+
+    if request.session.get('user_type') != 'teacher':
+        messages.error(request, "権限がありません")
+        return redirect('app:setting')
+
+    if request.method == "POST":
+        title = request.POST.get("title")
+        message = request.POST.get("message")
+        is_important = bool(request.POST.get("is_important"))
+        attachment = request.FILES.get("attachment")
+
+        expire_at_str = request.POST.get("expire_at")
+        expire_at = None
+        if expire_at_str:
+            expire_at = datetime.strptime(expire_at_str, "%Y-%m-%d")
+
+        students = Student.objects.filter(parent__isnull=False)
+
+        for student in students:
+            file_copy = None
+
+            if attachment:
+                attachment.seek(0)
+                file_copy = ContentFile(attachment.read(), name=attachment.name)
+
+            StudentNotice.objects.create(
+                student=student,
+                title=title,
+                message=message,
+                is_important=is_important,
+                expire_at=expire_at,
+                attachment=file_copy,
+            )
+
+        messages.success(request, "通知を送信しました")
+        return redirect("app:tuuchi")
+
+    return render(request, "app/tuuchi.html")
+
+#通知閲覧
+def student_notice_list(request):
+    if 'user_id' not in request.session:
+        return redirect("login")
+
+    user_type = request.session.get("user_type")
+    user_id = request.session.get("user_id")
+
+    if user_type not in ["student", "parent"]:
+        return redirect("login")
+
+    parent = get_object_or_404(Parent, id=user_id)
+    student = get_object_or_404(Student, parent=parent)
+
+    notices = StudentNotice.objects.filter(
+        student=student
+    ).filter(
+        Q(expire_at__isnull=True) | Q(expire_at__gte=timezone.now())
+    ).order_by(
+        "-is_important",
+        "-created_at"
+    )
+
+    # ✅ 未読件数（必要なら表示用）
+    unread_count = notices.filter(is_read=False).count()
+
+    return render(request, "app/student_notice_list.html", {
+        "notices": notices,
+        "unread_count": unread_count,
+    })
+
+
+#通知詳細
+def student_notice_detail(request, notice_id):
+    if 'user_id' not in request.session:
+        return redirect("login")
+
+    user_type = request.session.get("user_type")
+    user_id = request.session.get("user_id")
+
+    if user_type not in ["student", "parent"]:
+        return redirect("login")
+
+    if user_type == "student":
+        student = get_object_or_404(Student, id=user_id)
+    else:
+        parent = get_object_or_404(Parent, id=user_id)
+        student = get_object_or_404(Student, parent=parent)
+
+    notice = get_object_or_404(
+        StudentNotice,
+        id=notice_id,
+        student=student
+    )
+
+    # ✅ 既読にする
+    if not notice.is_read:
+        notice.is_read = True
+        notice.save()
+
+    return render(request, "app/student_notice_detail.html", {
+        "notice": notice
+    })
+
+
+# ===============================
+# お知らせ共通処理
+# ===============================
+
+def attendance_today(request):
+    if not request.session.get("reauth_ok"):
+        return redirect("app:qr_page")
+
+    # request.session["reauth_ok"] = False
+
+    today = timezone.now().date()
+
+    weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    today_week = weekday_map[timezone.now().weekday()]
+
+    # 選択された時間帯を取得
+    selected_slot = request.GET.get("slot")
+    if selected_slot:
+        try:
+            selected_slot = int(selected_slot)
+        except ValueError:
+            selected_slot = None
+
+    # 出席ルールを取得
+    rules_today = StudentAttendanceRule.objects.select_related(
+        "student",
+        "time_slot"
+    ).filter(day_of_week=today_week)
+
+    # ✅ 時間帯で絞り込み
+    if selected_slot:
+        rules_today = rules_today.filter(time_slot_id=selected_slot)
+
+    rules_today = rules_today.order_by("time_slot__start_time")
+
+    # 出席済みの生徒ID
+    attendances = Attendance.objects.filter(date=today)
+    attended_ids = set(attendances.values_list('student_id', flat=True))
+
+    # 時間帯ボタン用
+    time_slots_today = TimeSlot.objects.filter(
+        studentattendancerule__day_of_week=today_week
+    ).distinct().order_by("start_time")
+
+    # お知らせ（重要＋期限対応）
+    limit_date = timezone.now() - timedelta(days=30)
+    notices = StudentNotice.objects.filter(
+        created_at__gte=limit_date
+    ).filter(
+        Q(expire_at__isnull=True) | Q(expire_at__gte=timezone.now())
+    ).order_by(
+        "-is_important",
+        "-created_at"
+    )
+
+    return render(request, "teacher_attendance_list.html", {
+        "rules_today": rules_today,
+        "attendances": attendances,
+        "attended_ids": attended_ids,
+        "today": today,
+        "notices": notices,
+        "time_slots_today": time_slots_today,
+        "selected_slot": selected_slot,
+    })
+
+
+def notice_delete(request, notice_id):
+    notice = get_object_or_404(StudentNotice, id=notice_id)
+    notice.delete()
+    return JsonResponse({'success': True})
+
+def timeslot_delete(request, pk):
+    timeslot = get_object_or_404(TimeSlot, pk=pk)
+
+    if request.method == "POST":
+        timeslot.delete()
+        return redirect("app:timeslot_list")
+
+    return render(request, "app/timeslot_confirm_delete.html", {
+        "timeslot": timeslot
     })

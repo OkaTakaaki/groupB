@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}お知らせ一覧{% endblock %}
+
+{% block content %}
+<style>
+    .notice-container {
+        max-width: 720px;
+        margin: 30px auto;
+        background-color: #fff;
+        padding: 25px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .notice-title-bar {
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #2c3e50;
+    }
+
+    ul.notice-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    ul.notice-list li {
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    ul.notice-list li:last-child {
+        border-bottom: none;
+    }
+
+    ul.notice-list a {
+        display: block;
+        padding: 14px 10px;
+        text-decoration: none;
+        color: #333;
+        transition: background-color 0.2s;
+    }
+
+    ul.notice-list a:hover {
+        background-color: #f0f7ff;
+    }
+
+    .notice-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .notice-title {
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .notice-date {
+        font-size: 12px;
+        color: #777;
+        margin-top: 4px;
+    }
+
+    /* ===== 追加装飾 ===== */
+    .notice-important {
+        color: #e74c3c;
+        font-weight: bold;
+    }
+
+    .notice-unread::before {
+        content: "● ";
+        color: #3498db;
+    }
+
+    .badge {
+        display: inline-block;
+        background: #e74c3c;
+        color: white;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        margin-left: 6px;
+    }
+
+    .empty {
+        text-align: center;
+        color: #888;
+        padding: 40px 0;
+    }
+</style>
+
+<div class="notice-container">
+
+    <div class="notice-title-bar">
+        📢 お知らせ一覧（未読 {{ unread_count }} 件）
+    </div>
+
+    {% if notices %}
+        <ul class="notice-list">
+            {% for notice in notices %}
+                <li>
+                    <a href="{% url 'app:student_notice_detail' notice.id %}">
+                        <div class="notice-row">
+                            <div class="notice-title
+                                {% if notice.is_important %}notice-important{% endif %}
+                                {% if not notice.is_read %}notice-unread{% endif %}
+                            ">
+                                {{ notice.title }}
+
+                                {% if notice.is_important %}
+                                    <span class="badge">重要</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="notice-date">
+                            {{ notice.created_at|date:"Y/m/d" }}
+                        </div>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <div class="empty">お知らせはありません。</div>
+    {% endif %}
+
+</div>
+{% endblock %}

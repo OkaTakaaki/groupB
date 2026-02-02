@@ -51,10 +51,6 @@ body {
 
     {# 👩‍🎓 生徒または保護者ログイン時 #}
     {% if user_type == 'student' or user_type == 'parent' %}
-      <a href="{% url 'seaccount' user_id %}" class="settings-item">
-          <span class="icon">👤</span>
-          <span>アカウント編集</span>
-      </a>
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>
           <span>ログアウト</span>
@@ -95,7 +91,12 @@ body {
           <span>時間帯管理</span>
       </a>
 
-      
+      <a href="{% url 'app:tuuchi' %}" class="settings-item">
+          <span class="icon"></span>
+          <span>通知</span>
+      </a>
+
+
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>
           <span>ログアウト</span>
@@ -123,6 +124,12 @@ body {
           <span class="icon">⏰</span>
           <span>時間帯管理</span>
       </a>
+
+        <a href="{% url 'app:tuuchi' %}" class="settings-item">
+          <span class="icon">📢</span>
+          <span>通知</span>
+        </a>
+
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>
           <span>ログアウト</span>

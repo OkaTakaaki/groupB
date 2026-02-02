@@ -4,11 +4,143 @@
 
 {% block content %}
 
+<style>
+.page-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+/* 左：3 */
+.left-area {
+    flex: 3;
+}
+
+/* 右：1 */
+.right-area {
+    flex: 1;
+    min-width: 260px;
+}
+
+/* スマホ対応 */
+@media (max-width: 900px) {
+    .page-layout {
+        flex-direction: column;
+    }
+}
+.qr-fixed-button {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #5C82B8;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 14px;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+.qr-fixed-button .icon {
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+
+/* スマホで少し大きく */
+@media (max-width: 600px) {
+    .qr-fixed-button {
+        right: 15px;
+        bottom: 15px;
+        padding: 14px 18px;
+    }
+}
+/* === QR出席ボタン（右下固定） === */
+.qr-fixed-button {
+    position: fixed;
+    right: 20px;
+    bottom: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #5C82B8;
+    color: white;
+    padding: 20px 22px;
+    font-size: 20px;
+    border-radius: 16px;
+    text-decoration: none;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+    z-index: 9999;
+    font-weight: bold;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qr-fixed-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+}
+
+.qr-fixed-button .icon {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+/* スマホ対応 */
+@media (max-width: 600px) {
+    .qr-fixed-button {
+        right: 14px;
+        bottom: 14px;
+        padding: 16px 20px;
+        border-radius: 18px;
+    }
+}
+</style>
+
+
 <h2 style="margin-bottom: 20px;">本日の出席状況</h2>
+
+<div class="page-layout">
+
+<!-- ================== 左カラム ================== -->
+<div class="left-area">
 
 <!-- ================== 今日の出席予定者 ================== -->
 <div style="background:#f0f4ff; padding:15px; border-radius:10px; margin-bottom:25px;">
     <h3 style="margin-top:0;">【今日の出席予定者】</h3>
+
+    <!-- ===== 時間帯フィルターボタン ===== -->
+    <div style="margin-bottom:15px; display:flex; flex-wrap:wrap; gap:8px;">
+
+        <a href="?"
+           style="
+            padding:6px 14px;
+            border-radius:20px;
+            text-decoration:none;
+            font-size:13px;
+            font-weight:bold;
+            background:{% if not selected_slot %}#5C82B8{% else %}#e0e0e0{% endif %};
+            color:{% if not selected_slot %}white{% else %}#333{% endif %};
+           ">
+            全て
+        </a>
+
+        {% for slot in time_slots_today %}
+            <a href="?slot={{ slot.id }}"
+               style="
+                padding:6px 14px;
+                border-radius:20px;
+                text-decoration:none;
+                font-size:13px;
+                font-weight:bold;
+                background:{% if selected_slot == slot.id %}#5C82B8{% else %}#e0e0e0{% endif %};
+                color:{% if selected_slot == slot.id %}white{% else %}#333{% endif %};
+               ">
+                {{ slot.name }}
+            </a>
+        {% endfor %}
+    </div>
 
     {% if rules_today %}
         <ul style="list-style:none; padding:0;">
@@ -42,9 +174,8 @@
             {% endfor %}
         </ul>
     {% else %}
-        <p>本日の出席予定者はいません。</p>
+        <p>該当する出席予定者はいません。</p>
     {% endif %}
-
 </div>
 
 <!-- ================== 本日の振替出席者 ================== -->
@@ -72,9 +203,7 @@
                     </span>
                 </span>
 
-                <span style="color:#e67e22; font-weight:bold;">
-                     振替
-                </span>
+                <span style="color:#e67e22; font-weight:bold;">振替</span>
             </li>
             {% endfor %}
         </ul>
@@ -102,11 +231,97 @@
     {% endif %}
 </div>
 
-<!-- ================== QRボタン ================== -->
+</div> <!-- left-area end -->
+
+<!-- ================== 右カラム（お知らせ） ================== -->
+<div class="right-area">
+
+<div style="background:#f7f7ff; padding:15px; border-radius:12px;
+            border:1px solid #dcdcff;">
+    <h3>📢 お知らせ</h3>
+
+    {% if notices %}
+        <ul style="list-style:none; padding:0;">
+            {% for notice in notices %}
+                <li id="notice-{{ notice.id }}"
+                    style="background:white; padding:12px; margin-bottom:10px;
+                           border-radius:10px; border:1px solid #e0e0ff;
+                           display:flex; justify-content:space-between; align-items:center;">
+
+                    <a href="{% url 'app:student_notice_detail' notice.id %}"
+                       style="text-decoration:none; color:#333;">
+                        <strong>{{ notice.title }}</strong><br>
+                        <small style="color:#777;">
+                            {{ notice.created_at|date:"Y/m/d H:i" }}
+                        </small>
+                    </a>
+
+                    <button
+                        onclick="deleteNotice({{ notice.id }})"
+                        style="
+                            background:#ff6b6b;
+                            color:white;
+                            border:none;
+                            padding:6px 10px;
+                            border-radius:8px;
+                            cursor:pointer;
+                            font-size:13px;
+                        ">
+                        削除
+                    </button>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p style="color:#777;">現在お知らせはありません。</p>
+    {% endif %}
+</div>
+
+</div> <!-- right-area end -->
+
+</div> <!-- page-layout end -->
+
+<!-- ===== JavaScript ===== -->
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function deleteNotice(noticeId) {
+    if (!confirm('このお知らせを削除しますか？')) return;
+
+    fetch(`/app/notice/delete/${noticeId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const el = document.getElementById(`notice-${noticeId}`);
+            if (el) el.remove();
+        } else {
+            alert('削除に失敗しました');
+        }
+    })
+    .catch(() => alert('通信エラー'));
+}
+</script>
+
 <a href="{% url 'app:qr_page' %}"
-   style="display:flex; flex-direction:column; align-items:center;
-          background:#5C82B8; color:white; padding:12px; border-radius:12px;
-          text-decoration:none; margin-top:25px;">
+   class="qr-fixed-button">
     <span class="icon">📱</span>
     <div>QRから出席登録へ</div>
 </a>
