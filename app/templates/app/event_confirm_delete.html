@@ -1,22 +1,100 @@
 {% extends "base.html" %}
- 
-{% block title %}削除確認{% endblock %}
- 
-{% block content %}
-<h2>削除してもよろしいですか？</h2>
- 
-<p>{{ object.date }} {{ object.start_time|date:"H:i" }}  
-→ {{ object.student.child_name }}（{{ object.teacher.name }}）</p>
- 
-<form method="post">
-    {% csrf_token %}
-    <button type="submit" style="padding:8px 15px;background:#F44336;color:white;border-radius:5px;">
-        削除する
-    </button>
-</form>
 
-<div style="margin-top:20px;">
-    <a href="{% url 'app:calendar_month' %}">キャンセル</a>
+{% block title %}削除確認{% endblock %}
+
+{% block content %}
+
+<style>
+  .confirm-wrap{
+    width: min(520px, 92vw);
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 10px 22px rgba(0,0,0,0.12);
+    padding: 26px;
+    text-align: center;
+  }
+
+  .confirm-title{
+    font-size: 22px;
+    font-weight: 900;
+    color: #b00020;
+    margin-bottom: 18px;
+  }
+
+  .confirm-box{
+    background: #f7faff;
+    border: 1px solid #dbe5ff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 22px;
+    font-weight: 900;
+    line-height: 1.6;
+  }
+
+  .actions{
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .btn-delete{
+    padding: 12px 22px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 900;
+    cursor: pointer;
+    background: #e53935;
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+  }
+
+  .btn-delete:hover{
+    filter: brightness(0.95);
+  }
+
+  .btn-cancel{
+    padding: 12px 22px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 900;
+    background: #777;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-cancel:hover{
+    filter: brightness(0.95);
+  }
+</style>
+
+<div class="confirm-wrap">
+
+  <div class="confirm-title">
+    この予定を削除しますか？
+  </div>
+
+  <div class="confirm-box">
+    {{ object.date|date:"Y年n月j日" }}<br>
+    {{ object.start_time|time:"H:i" }} 〜 {{ object.end_time|time:"H:i" }}<br><br>
+    担当講師：{{ object.teacher.name }}
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="actions">
+      <button type="submit" class="btn-delete">
+        削除する
+      </button>
+      <a href="{% url 'app:calendar_day' object.date.year object.date.month object.date.day %}"
+         class="btn-cancel">
+        キャンセル
+      </a>
+    </div>
+  </form>
+
 </div>
 
 {% endblock %}

@@ -3,8 +3,7 @@ from . import views
 
 app_name = 'app'
 
-urlpatterns = [
-    
+urlpatterns = [    
     path("attendance/today/", views.attendance_today, name="attendance_today"),
     path('student_parent/menu/', views.student_parent_menu, name='student_parent_menu'),
     path('student_information/', views.student_information, name='student_information'),
@@ -19,7 +18,6 @@ urlpatterns = [
     path("setting", views.setting, name="setting"),
     path("mail_list/", views.mail_list, name="mail_list"),
     path("mail/<int:user_id>/", views.mail_list, name="mail_detail"), 
-   
     path('notice/delete/<int:notice_id>/',views.notice_delete,name='notice_delete'),
     path('smenu', views.smenu_view, name='smenu'),
     path("tuuchi/", views.tuuchi, name="tuuchi"),
@@ -29,5 +27,9 @@ urlpatterns = [
     path("verify-password/", views.verify_password, name="verify_password"),
     path("timeslots/", views.timeslot_list, name="timeslot_list"),
     path("timeslots/create/", views.timeslot_create, name="timeslot_create"),
+    path("schedule/<int:pk>/students/", views.schedule_students, name="schedule_students"),
+    path("schedule/<int:pk>/students/add/", views.schedule_student_add, name="schedule_student_add"),
+    path("schedule/<int:pk>/teachers/add/", views.schedule_teacher_add, name="schedule_teacher_add"),
+    path("schedule/<int:pk>/students/<int:student_id>/transfer/",views.transfer_register,name="transfer_register"),
     path("timeslot/<int:pk>/delete/", views.timeslot_delete, name="timeslot_delete"),
 ] 

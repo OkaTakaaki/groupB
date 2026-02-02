@@ -1,99 +1,77 @@
-from .models import Message
 from django import forms
 from django.forms import DateInput
-from .models import Schedule, Teacher, Student, StudentAttendanceRule
+from .models import Schedule, Teacher, Message, TimeSlot
 
 class MessageForm(forms.ModelForm):
     class Meta:
         model = Message
-        fields = ['content']  # ユーザーが入力するのは本文のみ
+        fields = ['content']
         widgets = {
             'content': forms.Textarea(attrs={'rows': 3, 'placeholder': 'メッセージを入力'}),
         }
 
 
 class ScheduleForm(forms.ModelForm):
-
-    start_hour = forms.ChoiceField(
-        choices=[(str(i).zfill(2), str(i).zfill(2)) for i in range(24)],
-        label="開始（時）"
-    )
-    start_minute = forms.ChoiceField(
-        choices=[("00", "00"), ("15", "15"), ("30", "30"), ("45", "45")],
-        label="開始（分）"
-    )
-
-    end_hour = forms.ChoiceField(
-        choices=[(str(i).zfill(2), str(i).zfill(2)) for i in range(24)],
-        label="終了（時）"
-    )
-    end_minute = forms.ChoiceField(
-        choices=[("00", "00"), ("15", "15"), ("30", "30"), ("45", "45")],
-        label="終了（分）"
+    # ✅ モデルに無いけどフォーム上で選ばせる「時間帯」
+    time_slot = forms.ModelChoiceField(
+        queryset=TimeSlot.objects.none(),
+        empty_label="時間帯を選択してください",
+        label="時間帯",
+        required=True
     )
 
     class Meta:
         model = Schedule
-        fields = ['date', 'teacher', 'students', 'status']
+        fields = ['date', 'title', 'teacher']  # 3項目 + time_slotは上で追加
         widgets = {
             'date': DateInput(attrs={'type': 'date'}),
-            'teacher': forms.Select(attrs={'class': 'form-input'}),
-            'students': forms.SelectMultiple(attrs={'class': 'form-input', 'size': 6}),
-            'status': forms.Select(attrs={'class': 'form-input'}),
+            'title': forms.TextInput(attrs={'placeholder': '授業予定'}),
+            'teacher': forms.Select(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.fields['teacher'].queryset = Teacher.objects.order_by('name')
-        self.fields['students'].queryset = Student.objects.order_by('child_name')
+        self.fields['time_slot'].queryset = TimeSlot.objects.all().order_by('start_time')
 
-        if self.instance and self.instance.start_time:
-            self.fields['start_hour'].initial = self.instance.start_time.strftime("%H")
-            self.fields['start_minute'].initial = self._round_minute(
-                self.instance.start_time.strftime("%M")
-            )
+        # ✅ 編集時：start_time/end_time に一致する TimeSlot を初期選択にする
+        if self.instance and self.instance.pk and self.instance.start_time and self.instance.end_time:
+            slot = TimeSlot.objects.filter(
+                start_time=self.instance.start_time,
+                end_time=self.instance.end_time
+            ).first()
+            if slot:
+                self.fields['time_slot'].initial = slot
 
-        if self.instance and self.instance.end_time:
-            self.fields['end_hour'].initial = self.instance.end_time.strftime("%H")
-            self.fields['end_minute'].initial = self._round_minute(
-                self.instance.end_time.strftime("%M")
-            )
-
-    def _round_minute(self, minute):
-        minute = int(minute)
-        if minute < 15: return "00"
-        elif minute < 30: return "15"
-        elif minute < 45: return "30"
-        else: return "45"
+        # ✅ 新規作成時：?slot_id= を受け取って初期選択
+        # （CreateView側で initial を入れる方法もあるけど、フォームだけでも動くようにしておく）
+        request = getattr(self, 'request', None)  # 通常は無いので後述の方法が確実
+        # ↑ここは何もしない（下のviews版が確実）
 
     def clean(self):
         cleaned_data = super().clean()
-        from datetime import time
 
-        sh = cleaned_data.get("start_hour")
-        sm = cleaned_data.get("start_minute")
-        eh = cleaned_data.get("end_hour")
-        em = cleaned_data.get("end_minute")
-
-        if not all([sh, sm, eh, em]):
+        slot = cleaned_data.get("time_slot")
+        if not slot:
             return cleaned_data
 
-        cleaned_data["start_time"] = time(int(sh), int(sm))
-        cleaned_data["end_time"] = time(int(eh), int(em))
-
-        if cleaned_data["start_time"] >= cleaned_data["end_time"]:
-            self.add_error('end_hour', "終了時刻は開始時刻より後にしてください。")
+        # ✅ TimeSlotから開始/終了を決定
+        cleaned_data["start_time"] = slot.start_time
+        cleaned_data["end_time"] = slot.end_time
 
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+
+        # ✅ cleanで入れた時間を保存
         instance.start_time = self.cleaned_data["start_time"]
         instance.end_time = self.cleaned_data["end_time"]
 
+        # ✅ 画面に出さないので固定
+        instance.status = "予定"
+
         if commit:
             instance.save()
-            self.save_m2m()
-
         return instance

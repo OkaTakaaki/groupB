@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}生徒追加{% endblock %}
+
+{% block content %}
+<style>
+  .wrap{
+    width: min(820px, 96vw);
+    margin: 16px auto 40px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+    padding: 18px 18px 22px;
+  }
+
+  .top{
+    text-align:center;
+    font-weight: 900;
+    font-size: 20px;
+    margin-bottom: 14px;
+  }
+
+  .search{
+    display:flex;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  input[type="text"]{
+    flex:1;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #d3d7de;
+    font-size: 14px;
+  }
+
+  .btn{
+    border: none;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 900;
+    cursor: pointer;
+    background:#5C82B8;
+    color:#fff;
+  }
+
+  .row{
+    display:grid;
+    grid-template-columns: 1fr auto;
+    align-items:center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e3e8f3;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+
+  .name{
+    font-weight: 900;
+    color:#223;
+  }
+
+  .back{
+    margin-top: 18px;
+    text-align:center;
+  }
+
+  .btn-gray{
+    background:#777;
+    color:#fff;
+    border:none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 900;
+    cursor:pointer;
+  }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    {{ schedule.date|date:"Y年n月j日 (D)" }}<br>
+    生徒追加
+  </div>
+
+  <!-- 🔍 検索フォーム -->
+  <form method="get" class="search">
+    <input
+      type="text"
+      name="q"
+      value="{{ q }}"
+      placeholder="生徒名で検索"
+    >
+    <button class="btn" type="submit">検索</button>
+  </form>
+
+  <!-- 👇 検索結果 -->
+  {% for s in students %}
+    <div class="row">
+      <div class="name">
+        {{ s.child_name }}（{{ s.gender }}）
+      </div>
+
+      <form method="post" style="margin:0;">
+        {% csrf_token %}
+        <input type="hidden" name="student_id" value="{{ s.id }}">
+        <button class="btn" type="submit">追加</button>
+      </form>
+    </div>
+  {% empty %}
+    <div style="text-align:center; font-weight:900; color:#667;">
+      追加できる生徒がいません
+    </div>
+  {% endfor %}
+
+  <!-- 戻る -->
+  <div class="back">
+    <a href="{% url 'app:schedule_students' schedule.id %}" class="btn-gray">
+      戻る
+    </a>
+  </div>
+</div>
+{% endblock %}

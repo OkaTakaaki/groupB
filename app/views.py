@@ -16,12 +16,13 @@ from django.contrib import messages
 from django.contrib.auth.hashers import check_password
 from django.core.files.base import ContentFile
 from django import forms
+from django.views.decorators.http import require_http_methods
 
 # Models
 from .models import (
     Schedule, Student, Parent, Teacher,
     Message, StudentAttendanceRule, Attendance,
-    TimeSlot, StudentNotice
+    TimeSlot, StudentNotice,ScheduleStudent, ScheduleTeacher
 )
 
 # Forms
@@ -343,24 +344,44 @@ class CalendarDayView(View):
 
         schedules = Schedule.objects.filter(
             date=target_date
-        ).select_related("teacher").prefetch_related("students").order_by("start_time")
+        ).select_related("teacher").order_by("start_time")
 
-        # TimeSlot を取得
         time_slots = TimeSlot.objects.all().order_by("start_time")
+
+        # ✅ 空白を消すための表示範囲（最初〜最後のTimeSlot）
+        first_slot = time_slots.first()
+        start_offset = first_slot.start_time.hour * 60 + first_slot.start_time.minute if first_slot else 0
+
+        last_slot = time_slots.last()
+        end_offset = last_slot.end_time.hour * 60 + last_slot.end_time.minute if last_slot else start_offset + 60
+
+        # ✅ ここ重要：各TimeSlotに「その枠の予定があるか」を持たせる
+        slot_rows = []
+        for slot in time_slots:
+            found = schedules.filter(
+                start_time=slot.start_time,
+                end_time=slot.end_time
+            ).first()
+
+            slot_rows.append({
+                "slot": slot,
+                "schedule": found,  # あればSchedule、なければNone
+            })
 
         prev_day = target_date - timedelta(days=1)
         next_day = target_date + timedelta(days=1)
 
         context = {
             "target_date": target_date,
-            "schedules": schedules,
-            "time_slots": time_slots,
+            "slot_rows": slot_rows,    # ✅ テンプレで使う（重要）
+            "start_offset": start_offset,
+            "end_offset": end_offset,
             "prev_day_url": reverse_lazy("app:calendar_day",
-                                         kwargs={"year": prev_day.year, "month": prev_day.month, "day": prev_day.day}),
+                kwargs={"year": prev_day.year, "month": prev_day.month, "day": prev_day.day}),
             "next_day_url": reverse_lazy("app:calendar_day",
-                                         kwargs={"year": next_day.year, "month": next_day.month, "day": next_day.day}),
+                kwargs={"year": next_day.year, "month": next_day.month, "day": next_day.day}),
             "month_url": reverse_lazy("app:calendar_month",
-                                      kwargs={"year": year, "month": month}),
+                kwargs={"year": year, "month": month}),
         }
         return render(request, "app/calendar_day.html", context)
 
@@ -373,11 +394,45 @@ class ScheduleCreateView(CreateView):
     form_class = ScheduleForm
     template_name = "app/event_form.html"
 
+    def get_initial(self):
+        initial = super().get_initial()
+
+        # date
+        date_str = self.request.GET.get("date")
+        if date_str:
+            initial["date"] = date_str
+
+        # ✅ start=HH:MM → TimeSlotのstart_timeと一致させて初期選択
+        start_str = self.request.GET.get("start")
+        if start_str:
+            try:
+                t = datetime.strptime(start_str, "%H:%M").time()
+                slot = TimeSlot.objects.filter(start_time=t).first()
+                if slot:
+                    initial["time_slot"] = slot
+            except ValueError:
+                pass
+
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        date_str = self.request.GET.get("date")
+        if not date_str and context.get("form") and context["form"].initial.get("date"):
+            date_str = context["form"].initial.get("date")
+
+        context["date_str"] = date_str
+        return context
+
+    def form_valid(self, form):
+        self.object = form.save()
+        return redirect(self.get_success_url())
+
     def get_success_url(self):
         s = self.object
-        return reverse("app:calendar_month",
-                       kwargs={"year": s.date.year, "month": s.date.month})
-
+        return reverse("app:calendar_day",
+                       kwargs={"year": s.date.year, "month": s.date.month, "day": s.date.day})
 
 # ===============================
 # スケジュール更新
@@ -387,11 +442,22 @@ class ScheduleUpdateView(UpdateView):
     form_class = ScheduleForm
     template_name = "app/event_form.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # ✅ 編集は object.date を hidden に入れる
+        obj = self.get_object()
+        context["date_str"] = obj.date.strftime("%Y-%m-%d")
+        return context
+
+    def form_valid(self, form):
+        self.object = form.save()
+        return redirect(self.get_success_url())
+
     def get_success_url(self):
-        s = self.get_object()
+        s = self.object
         return reverse("app:calendar_day",
                        kwargs={"year": s.date.year, "month": s.date.month, "day": s.date.day})
-
 
 # ===============================
 # スケジュール削除
@@ -615,6 +681,270 @@ def timeslot_list(request):
     timeslots = TimeSlot.objects.all().order_by("start_time")
     return render(request, "app/timeslot_list.html", {
         "timeslots": timeslots
+    })
+
+@require_http_methods(["GET", "POST"])
+def schedule_students(request, pk):
+    """
+    予定（Schedule）に紐づく
+    - 生徒一覧（ScheduleStudent）
+    - 講師一覧（ScheduleTeacher）
+    を表示＆操作する画面
+    """
+    schedule = get_object_or_404(Schedule, pk=pk)
+
+    # -----------------------------
+    # POST：ボタン操作（更新/削除など）
+    # -----------------------------
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        # ✅ 生徒削除
+        if action == "remove_student":
+            student_id = request.POST.get("student_id")
+            if student_id:
+                ScheduleStudent.objects.filter(
+                    schedule=schedule,
+                    student_id=student_id
+                ).delete()
+            return redirect("app:schedule_students", pk=schedule.pk)
+
+        # ✅ 生徒ステータス更新（振替は別ページへ）
+        elif action == "update_student_status":
+            student_id = request.POST.get("student_id")
+            status = request.POST.get("status")
+
+            if student_id and status:
+                link = get_object_or_404(
+                    ScheduleStudent,
+                    schedule=schedule,
+                    student_id=student_id
+                )
+
+                # ✅ 振替が選ばれたら別ページへ
+                if status == "振替":
+                    return redirect("app:transfer_register", pk=schedule.pk, student_id=student_id)
+
+                # ✅ 振替以外は通常更新
+                link.status = status
+                link.save()
+
+            return redirect("app:schedule_students", pk=schedule.pk)
+
+        # ✅ 講師削除（ここでは student_id を一切使わない）
+        elif action == "remove_teacher":
+            teacher_id = request.POST.get("teacher_id")
+            if teacher_id:
+                ScheduleTeacher.objects.filter(
+                    schedule=schedule,
+                    teacher_id=teacher_id
+                ).delete()
+            return redirect("app:schedule_students", pk=schedule.pk)
+
+        # ✅ 想定外の action の場合も安全に戻す
+        return redirect("app:schedule_students", pk=schedule.pk)
+
+    # -----------------------------
+    # GET：画面表示
+    # -----------------------------
+    links = ScheduleStudent.objects.select_related("student").filter(
+        schedule=schedule
+    ).order_by("student__child_name")
+
+    teacher_links = ScheduleTeacher.objects.select_related("teacher").filter(
+        schedule=schedule
+    ).order_by("teacher__name")
+
+    context = {
+        "schedule": schedule,
+        "target_date": schedule.date,
+        "links": links,
+        "teacher_links": teacher_links,
+        "status_choices": ScheduleStudent.STATUS_CHOICES,
+    }
+    return render(request, "app/schedule_students.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+def schedule_student_add(request, pk):
+    """
+    生徒を検索して授業（Schedule）に追加するページ
+    - GET : 生徒検索＋一覧表示
+    - POST: 選択した生徒を ScheduleStudent で追加（重複は作らない）
+    """
+    schedule = get_object_or_404(Schedule, pk=pk)
+
+    # 🔍 検索ワード
+    q = request.GET.get("q", "").strip()
+
+    # ✅ 全生徒（名前順）
+    students_qs = Student.objects.all().order_by("child_name")
+
+    # ✅ 検索（名前・かな）
+    if q:
+        students_qs = students_qs.filter(
+            Q(child_name__icontains=q) |
+            Q(child_name_kana__icontains=q)
+        )
+
+    # ✅ すでにこの授業に登録済みの生徒は除外
+    already_ids = set(
+        ScheduleStudent.objects.filter(schedule=schedule)
+        .values_list("student_id", flat=True)
+    )
+    students = students_qs.exclude(id__in=already_ids)
+
+    # ✅ 追加処理
+    if request.method == "POST":
+        student_id = request.POST.get("student_id")
+        if student_id:
+            student = get_object_or_404(Student, pk=student_id)
+            ScheduleStudent.objects.get_or_create(
+                schedule=schedule,
+                student=student,
+                defaults={"status": "予定"}  # 最初は「予定」で登録
+            )
+        return redirect("app:schedule_students", pk=schedule.pk)
+
+    # ✅ 画面表示
+    return render(request, "app/schedule_student_add.html", {
+        "schedule": schedule,
+        "q": q,
+        "students": students,
+        "already_count": len(already_ids),
+    })
+
+
+@require_http_methods(["GET", "POST"])
+def schedule_teacher_add(request, pk):
+    """
+    講師を検索して授業に追加するページ（未登録の講師だけ表示）
+    - GET : 未登録の講師一覧（検索可）
+    - POST: 選択した講師を ScheduleTeacher（中間モデル）で追加（重複は作らない）
+    """
+    schedule = get_object_or_404(Schedule, pk=pk)
+
+    # 🔍 検索ワード
+    q = request.GET.get("q", "").strip()
+
+    # ✅ 全講師（名前順）
+    teachers_qs = Teacher.objects.all().order_by("name")
+
+    # ✅ 検索（名前・login_id・権限）
+    if q:
+        teachers_qs = teachers_qs.filter(
+            Q(name__icontains=q) |
+            Q(login_id__icontains=q) |
+            Q(permission_level__icontains=q)
+        )
+
+    # ✅ すでにこの予定に登録されている講師ID（中間モデルから取得）
+    already_ids = set(
+        ScheduleTeacher.objects.filter(schedule=schedule)
+        .values_list("teacher_id", flat=True)
+    )
+
+    # ✅ 未登録の講師だけ表示（＝画面がスッキリ）
+    teachers = teachers_qs.exclude(id__in=already_ids)
+
+    # ✅ 「現在の担当（複数）」表示用（テンプレで使う）
+    teacher_links = ScheduleTeacher.objects.select_related("teacher").filter(
+        schedule=schedule
+    ).order_by("teacher__name")
+
+    # ✅ 追加処理
+    if request.method == "POST":
+        teacher_id = request.POST.get("teacher_id")
+        if teacher_id:
+            teacher = get_object_or_404(Teacher, pk=teacher_id)
+
+            # ✅ 二重追加を防ぐ（unique_together + get_or_create）
+            ScheduleTeacher.objects.get_or_create(
+                schedule=schedule,
+                teacher=teacher
+            )
+
+        # ✅ 追加後は予定詳細へ戻る（追加結果がすぐ見える）
+        return redirect("app:schedule_students", pk=schedule.pk)
+
+    # ✅ 画面表示
+    return render(request, "app/schedule_teacher_add.html", {
+        "schedule": schedule,
+        "q": q,
+        "teachers": teachers,                 # 未登録だけ
+        "already_count": len(already_ids),    # 登録済み人数（任意表示用）
+        "teacher_links": teacher_links,       # 現在の担当表示用
+    })
+
+@require_http_methods(["GET", "POST"])
+def transfer_register(request, pk, student_id):
+    """
+    ✅ 振替登録ページ
+    - 同じ日付×同じ時間帯に「振替Schedule」が既にあれば再利用する（重複Scheduleを作らない）
+    """
+
+    original_schedule = get_object_or_404(Schedule, pk=pk)
+    student = get_object_or_404(Student, pk=student_id)
+
+    # 元の授業にその生徒がいるかチェック
+    link = get_object_or_404(ScheduleStudent, schedule=original_schedule, student=student)
+
+    time_slots = TimeSlot.objects.all().order_by("start_time")
+
+    if request.method == "POST":
+        new_date_str = request.POST.get("new_date")
+        slot_id = request.POST.get("time_slot")
+
+        if not new_date_str or not slot_id:
+            return render(request, "app/transfer_register.html", {
+                "original": original_schedule,
+                "student": student,
+                "time_slots": time_slots,
+                "error": "日付と時間帯を選択してください",
+            })
+
+        slot = get_object_or_404(TimeSlot, pk=slot_id)
+
+        try:
+            new_date = datetime.strptime(new_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return render(request, "app/transfer_register.html", {
+                "original": original_schedule,
+                "student": student,
+                "time_slots": time_slots,
+                "error": "日付の形式が正しくありません",
+            })
+
+        # ✅ ここがポイント：同じ枠の「振替Schedule」があれば再利用
+        transfer_schedule, created = Schedule.objects.get_or_create(
+            date=new_date,
+            start_time=slot.start_time,
+            end_time=slot.end_time,
+            status="振替",
+            defaults={
+                "title": f"{original_schedule.title}（振替）",
+                "original_date": original_schedule.date,
+                "teacher": original_schedule.teacher,
+            }
+        )
+
+        # ✅ 振替Scheduleに生徒を紐付け（同じ生徒の二重登録も防ぐ）
+        ScheduleStudent.objects.get_or_create(
+            schedule=transfer_schedule,
+            student=student,
+            defaults={"status": "振替"}
+        )
+
+        # ✅ 元の授業側の生徒ステータスを振替にする（運用に合わせて変更OK）
+        link.status = "振替"
+        link.save()
+
+        return redirect("app:schedule_students", pk=transfer_schedule.pk)
+
+    return render(request, "app/transfer_register.html", {
+        "original": original_schedule,
+        "student": student,
+        "time_slots": time_slots,
     })
 from .models import Student, StudentNotice
 

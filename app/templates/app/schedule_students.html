@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% load app_extras %}
+
+{% block title %}生徒一覧{% endblock %}
+
+{% block content %}
+<style>
+  .wrap{
+    width: min(820px, 96vw);
+    margin: 16px auto 40px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+    padding: 18px 18px 22px;
+  }
+  .top{
+    text-align:center;
+    font-weight: 900;
+    font-size: 20px;
+    margin: 6px 0 14px;
+  }
+  .actions{
+    display:flex;
+    justify-content:center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .btn{
+    border:none;
+    padding:8px 14px;
+    border-radius:10px;
+    font-weight:900;
+    cursor:pointer;
+    background:#5C82B8;
+    color:#fff;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* ✅ 講師枠と同じ “パネル” */
+  .panel{
+    background:#f7faff;
+    border:1px solid #e2e8ff;
+    border-radius:12px;
+    padding:12px;
+    margin-bottom:14px;
+  }
+  .panel-title{
+    font-weight:900;
+    margin-bottom:8px;
+  }
+
+  /* ✅ 枠の中の1行（講師と同じ row を流用） */
+  .row{
+    display:grid;
+    grid-template-columns: 1fr auto;
+    gap:10px;
+    align-items:center;
+    padding:10px 12px;
+    border:1px solid #e3e8f3;
+    border-radius:12px;
+    margin-bottom:10px;
+    background:#fff;
+  }
+  .name{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    font-weight:900;
+    flex-wrap: wrap;
+  }
+  .tag{
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:999px;
+    background:#eef2ff;
+    font-weight:900;
+  }
+
+  /* ✅ 生徒の右側（状態更新フォーム）を整える */
+  .right{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:flex-end;
+  }
+  select{
+    padding:6px 10px;
+    border-radius:10px;
+    border:1px solid #d3d7de;
+    font-weight:900;
+    background:#fff;
+  }
+
+  /* ✅ 生徒の「削除」ボタンは“見た目だけ”消す（処理は残る） */
+  .btn-del{
+    display:none;
+  }
+
+  /* 戻るボタン固定 */
+  .back-fixed{
+    position: fixed;
+    bottom: 72px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  .btn-back{
+    pointer-events: auto;
+    padding: 14px 30px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+    color: #fff;
+    font-weight: 900;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+    transition: all .2s ease;
+  }
+  .btn-back:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.32);
+    filter: brightness(1.06);
+  }
+</style>
+
+<div class="wrap">
+
+  <!-- 日付 -->
+  <div class="top">{{ schedule.date|date:"Y年n月j日 (D)" }}</div>
+
+  <!-- 操作ボタン -->
+  <div class="actions">
+    <a class="btn" href="{% url 'app:schedule_student_add' schedule.id %}">＋ 生徒追加</a>
+    <a class="btn" href="{% url 'app:schedule_teacher_add' schedule.id %}">＋ 講師追加</a>
+  </div>
+
+  <!-- 予定情報 -->
+  <div class="panel">
+    <div><strong>予定名：</strong>{{ schedule.title }}</div>
+    <div>
+      <strong>時間：</strong>
+      {{ schedule.start_time|time:"H:i" }} - {{ schedule.end_time|time:"H:i" }}
+    </div>
+  </div>
+
+  <!-- ✅ 生徒一覧も “枠（panel）” に入れる -->
+  <div class="panel">
+    <div class="panel-title">生徒（複数）</div>
+
+    {% for link in links %}
+      <div class="row">
+        <!-- 左：生徒情報 -->
+        <div class="name">
+          <span>{{ link.student.child_name }}</span>
+          <span class="tag">{{ link.student.gender }}</span>
+          <span class="tag">状態：{{ link.status }}</span>
+        </div>
+
+        <!-- 右：状態更新（削除は見た目だけ非表示） -->
+        <div class="right">
+          <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_student_status">
+            <input type="hidden" name="student_id" value="{{ link.student.id }}">
+            <select name="status">
+              {% for value,label in status_choices %}
+                <option value="{{ value }}" {% if link.status == value %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+            <button class="btn" type="submit">更新</button>
+          </form>
+
+          <!-- ✅ “見た目だけ”消すため、CSSで display:none にしてる -->
+          <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="remove_student">
+            <input type="hidden" name="student_id" value="{{ link.student.id }}">
+            <button class="btn-del" type="submit">削除</button>
+          </form>
+        </div>
+      </div>
+    {% empty %}
+      <div style="text-align:center; font-weight:900; color:#667; padding:12px;">
+        まだ生徒が追加されていません
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- ✅ 担当講師（複数） -->
+  <div class="panel">
+    <div class="panel-title">担当講師（複数）</div>
+
+    {% for tlink in teacher_links %}
+      <div class="row">
+        <div class="name">
+          <span>{{ tlink.teacher.name }}</span>
+          <span class="tag">{{ tlink.teacher.permission_level }}</span>
+        </div>
+
+        <form method="post" style="margin:0;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="remove_teacher">
+          <input type="hidden" name="teacher_id" value="{{ tlink.teacher.id }}">
+          <button class="btn" style="background:#c94b4b;">削除</button>
+        </form>
+      </div>
+    {% empty %}
+      <div style="text-align:center;color:#667; font-weight:900; padding: 12px;">
+        まだ講師が追加されていません
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- 戻る -->
+  <div class="back-fixed">
+    <a class="btn-back"
+       href="{% url 'app:calendar_day' schedule.date.year schedule.date.month schedule.date.day %}">
+      ← 日付の画面に戻る
+    </a>
+  </div>
+
+</div>
+{% endblock %}
