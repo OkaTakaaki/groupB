@@ -28,7 +28,76 @@
         flex-direction: column;
     }
 }
+.qr-fixed-button {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #5C82B8;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 14px;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+.qr-fixed-button .icon {
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+
+/* スマホで少し大きく */
+@media (max-width: 600px) {
+    .qr-fixed-button {
+        right: 15px;
+        bottom: 15px;
+        padding: 14px 18px;
+    }
+}
+/* === QR出席ボタン（右下固定） === */
+.qr-fixed-button {
+    position: fixed;
+    right: 20px;
+    bottom: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #5C82B8;
+    color: white;
+    padding: 20px 22px;
+    font-size: 20px;
+    border-radius: 16px;
+    text-decoration: none;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+    z-index: 9999;
+    font-weight: bold;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qr-fixed-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+}
+
+.qr-fixed-button .icon {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+/* スマホ対応 */
+@media (max-width: 600px) {
+    .qr-fixed-button {
+        right: 14px;
+        bottom: 14px;
+        padding: 16px 20px;
+        border-radius: 18px;
+    }
+}
 </style>
+
 
 <h2 style="margin-bottom: 20px;">本日の出席状況</h2>
 
@@ -250,5 +319,11 @@ function deleteNotice(noticeId) {
     .catch(() => alert('通信エラー'));
 }
 </script>
+
+<a href="{% url 'app:qr_page' %}"
+   class="qr-fixed-button">
+    <span class="icon">📱</span>
+    <div>QRから出席登録へ</div>
+</a>
 
 {% endblock %}

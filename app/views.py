@@ -1,32 +1,32 @@
-from datetime import date, timedelta, datetime, time
+from datetime import date, datetime, timedelta
 import calendar
 import locale
 import jpholiday
 
 # Django
-from django.contrib.auth.hashers import check_password
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
-from django.views.generic import TemplateView, FormView, UpdateView, DeleteView, CreateView
-from django.urls import reverse_lazy, reverse
+from django.views.generic import CreateView, UpdateView, DeleteView
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.db.models import Q
+from django.contrib import messages
+from django.contrib.auth.hashers import check_password
 from django.core.files.base import ContentFile
 from django import forms
-from django.contrib import messages
-# Local Imports
+
+# Models
 from .models import (
     Schedule, Student, Parent, Teacher,
-    Message,  StudentAttendanceRule, Attendance, TimeSlot
+    Message, StudentAttendanceRule, Attendance,
+    TimeSlot, StudentNotice
 )
+
+# Forms
 from .forms import ScheduleForm, MessageForm
 
-#お知らせ共通処理
-from datetime import timedelta
-from django.utils import timezone
-from django.views.decorators.http import require_POST
 
 
 # ===============================
@@ -73,14 +73,13 @@ def student_parent_menu(request):
 
 
 # ===============================
-# 生徒一覧（曜日フィルター対応）
+# 生徒一覧
 # ===============================
 def student_information(request):
-    if 'user_id' not in request.session:
-        return redirect('login')
+    if "user_id" not in request.session:
+        return redirect("login")
 
-    selected_day = request.GET.get("day")   # Mon / Tue ...
-
+    selected_day = request.GET.get("day")
     students = Student.objects.all()
 
     if selected_day:
@@ -88,9 +87,9 @@ def student_information(request):
             attendance_rules__day_of_week=selected_day
         ).distinct()
 
-    return render(request, 'student_information.html', {
-        'students': students,
-        'selected_day': selected_day,
+    return render(request, "student_information.html", {
+        "students": students,
+        "selected_day": selected_day,
     })
 
 
