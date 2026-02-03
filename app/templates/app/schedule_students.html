@@ -39,7 +39,6 @@
     justify-content:center;
   }
 
-  /* ✅ 講師枠と同じ “パネル” */
   .panel{
     background:#f7faff;
     border:1px solid #e2e8ff;
@@ -52,7 +51,6 @@
     margin-bottom:8px;
   }
 
-  /* ✅ 枠の中の1行（講師と同じ row を流用） */
   .row{
     display:grid;
     grid-template-columns: 1fr auto;
@@ -79,7 +77,6 @@
     font-weight:900;
   }
 
-  /* ✅ 生徒の右側（状態更新フォーム）を整える */
   .right{
     display:flex;
     gap:8px;
@@ -94,12 +91,10 @@
     background:#fff;
   }
 
-  /* ✅ 生徒の「削除」ボタンは“見た目だけ”消す（処理は残る） */
   .btn-del{
     display:none;
   }
 
-  /* 戻るボタン固定 */
   .back-fixed{
     position: fixed;
     bottom: 72px;
@@ -119,12 +114,6 @@
     font-weight: 900;
     text-decoration: none;
     box-shadow: 0 8px 20px rgba(0,0,0,0.22);
-    transition: all .2s ease;
-  }
-  .btn-back:hover{
-    transform: translateY(-2px);
-    box-shadow: 0 12px 28px rgba(0,0,0,0.32);
-    filter: brightness(1.06);
   }
 </style>
 
@@ -133,11 +122,13 @@
   <!-- 日付 -->
   <div class="top">{{ schedule.date|date:"Y年n月j日 (D)" }}</div>
 
-  <!-- 操作ボタン -->
-  <div class="actions">
-    <a class="btn" href="{% url 'app:schedule_student_add' schedule.id %}">＋ 生徒追加</a>
-    <a class="btn" href="{% url 'app:schedule_teacher_add' schedule.id %}">＋ 講師追加</a>
-  </div>
+  <!-- 操作ボタン（講師のみ） -->
+  {% if user_type == "teacher" %}
+    <div class="actions">
+      <a class="btn" href="{% url 'app:schedule_student_add' schedule.id %}">＋ 生徒追加</a>
+      <a class="btn" href="{% url 'app:schedule_teacher_add' schedule.id %}">＋ 講師追加</a>
+    </div>
+  {% endif %}
 
   <!-- 予定情報 -->
   <div class="panel">
@@ -148,42 +139,42 @@
     </div>
   </div>
 
-  <!-- ✅ 生徒一覧も “枠（panel）” に入れる -->
+  <!-- 生徒一覧 -->
   <div class="panel">
     <div class="panel-title">生徒（複数）</div>
 
     {% for link in links %}
       <div class="row">
-        <!-- 左：生徒情報 -->
         <div class="name">
           <span>{{ link.student.child_name }}</span>
           <span class="tag">{{ link.student.gender }}</span>
           <span class="tag">状態：{{ link.status }}</span>
         </div>
 
-        <!-- 右：状態更新（削除は見た目だけ非表示） -->
         <div class="right">
-          <form method="post" style="margin:0;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="update_student_status">
-            <input type="hidden" name="student_id" value="{{ link.student.id }}">
-            <select name="status">
-              {% for value,label in status_choices %}
-                <option value="{{ value }}" {% if link.status == value %}selected{% endif %}>
-                  {{ label }}
-                </option>
-              {% endfor %}
-            </select>
-            <button class="btn" type="submit">更新</button>
-          </form>
-
-          <!-- ✅ “見た目だけ”消すため、CSSで display:none にしてる -->
-          <form method="post" style="margin:0;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="remove_student">
-            <input type="hidden" name="student_id" value="{{ link.student.id }}">
-            <button class="btn-del" type="submit">削除</button>
-          </form>
+          {% if user_type == "teacher" %}
+            <form method="post" style="margin:0;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="update_student_status">
+              <input type="hidden" name="student_id" value="{{ link.student.id }}">
+              <select name="status">
+                {% for value,label in status_choices %}
+                  <option value="{{ value }}" {% if link.status == value %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                {% endfor %}
+              </select>
+              <button class="btn" type="submit">更新</button>
+            </form>
+          {% else %}
+            {% if user_type == "parent" and link.student.parent_id == login_parent.id %}
+              <a class="btn"
+                style="background:#10b981;"
+                href="{% url 'app:transfer_register' schedule.id link.student.id %}">
+                振替申請
+              </a>
+            {% endif %}
+          {% endif %}
         </div>
       </div>
     {% empty %}
@@ -193,7 +184,7 @@
     {% endfor %}
   </div>
 
-  <!-- ✅ 担当講師（複数） -->
+  <!-- 担当講師 -->
   <div class="panel">
     <div class="panel-title">担当講師（複数）</div>
 
@@ -204,12 +195,14 @@
           <span class="tag">{{ tlink.teacher.permission_level }}</span>
         </div>
 
-        <form method="post" style="margin:0;">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="remove_teacher">
-          <input type="hidden" name="teacher_id" value="{{ tlink.teacher.id }}">
-          <button class="btn" style="background:#c94b4b;">削除</button>
-        </form>
+        {% if user_type == "teacher" %}
+          <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="remove_teacher">
+            <input type="hidden" name="teacher_id" value="{{ tlink.teacher.id }}">
+            <button class="btn" style="background:#c94b4b;">削除</button>
+          </form>
+        {% endif %}
       </div>
     {% empty %}
       <div style="text-align:center;color:#667; font-weight:900; padding: 12px;">

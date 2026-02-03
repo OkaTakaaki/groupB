@@ -32,4 +32,6 @@ urlpatterns = [
     path("schedule/<int:pk>/teachers/add/", views.schedule_teacher_add, name="schedule_teacher_add"),
     path("schedule/<int:pk>/students/<int:student_id>/transfer/",views.transfer_register,name="transfer_register"),
     path("timeslot/<int:pk>/delete/", views.timeslot_delete, name="timeslot_delete"),
+    path("schedule/generate/",views.MonthlyScheduleGenerateView.as_view(),name="schedule_generate"),
+    path("schedule/generate/", views.ScheduleGenerateView.as_view(), name="schedule_generate"),
 ] 

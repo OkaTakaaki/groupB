@@ -92,10 +92,14 @@ body {
       </a>
 
       <a href="{% url 'app:tuuchi' %}" class="settings-item">
-          <span class="icon"></span>
-          <span>通知</span>
+          <span class="icon">📢</span>
+          <span>全体連絡</span>
       </a>
 
+      <a href="{% url 'app:schedule_generate' %}" class="settings-item">
+        <span class="icon">📅</span>
+        <span>月次Schedule生成</span>
+    </a>
 
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>
@@ -129,6 +133,12 @@ body {
           <span class="icon">📢</span>
           <span>通知</span>
         </a>
+
+        <a href="{% url 'app:schedule_generate' %}" class="settings-item">
+          <span class="icon">📅</span>
+          <span>月次Schedule生成</span>
+        </a>
+
 
       <a href="{% url 'logout' %}" class="settings-item logout">
           <span class="icon">🚪</span>

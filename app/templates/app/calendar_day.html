@@ -228,11 +228,14 @@
   </div>
 
   <div class="day-header-side">
-    <button class="btn-add"
-      onclick="location.href='{% url 'app:schedule_create' %}?date={{ target_date|date:'Y-m-d' }}'">
-      ＋予定の新規追加
-    </button>
+    {% if user_type == "teacher" %}
+      <button class="btn-add"
+        onclick="location.href='{% url 'app:schedule_create' %}?date={{ target_date|date:'Y-m-d' }}'">
+        ＋予定の新規追加
+      </button>
+    {% endif %}
   </div>
+
 </div>
 
 <div class="day-wrapper">
@@ -252,10 +255,12 @@
         </div>
 
         <!-- クリックで追加 -->
-        <div class="hour-click"
-             onclick="createSchedule('{{ slot.start_time|time:"H:i" }}')"
-             style="top:{{ top_pos }}px; height:{{ height_pos }}px;">
-        </div>
+        {% if user_type == "teacher" %}
+          <div class="hour-click"
+              onclick="createSchedule('{{ slot.start_time|time:"H:i" }}')"
+              style="top:{{ top_pos }}px; height:{{ height_pos }}px;">
+          </div>
+        {% endif %}
 
         <!-- ✅ 予定あり：カード / なし：追加ボタン（※ schedule.pk を使わない） -->
         {% if found %}
@@ -264,12 +269,14 @@
        onclick="location.href='{% url 'app:schedule_students' pk=found.pk %}'">
 
     <!-- ✅ 右上のアクション（詳細 / 削除） -->
-    <div class="schedule-actions" onclick="event.stopPropagation();">
-      <a class="btn-mini btn-mini-del"
-         href="{% url 'app:schedule_delete' pk=found.pk %}">
-        削除
-      </a>
-    </div>
+     {% if user_type == "teacher" %}
+      <div class="schedule-actions" onclick="event.stopPropagation();">
+        <a class="btn-mini btn-mini-del"
+          href="{% url 'app:schedule_delete' pk=found.pk %}">
+          削除
+        </a>
+      </div>
+    {% endif %}
 
     <div style="font-weight:900; font-size:14px;">{{ found.title }}</div>
     <div style="opacity:.9; margin-top:4px;">
@@ -280,11 +287,15 @@
 
           <div class="slot-text" style="top:{{ top_pos }}px; height:{{ height_pos }}px;">
             <span class="slot-empty">予定なし</span>
-            <a class="slot-add"
-               href="{% url 'app:schedule_create' %}?date={{ target_date|date:'Y-m-d' }}&start={{ slot.start_time|time:'H:i' }}">
-              ＋追加
-            </a>
+
+            {% if user_type == "teacher" %}
+              <a class="slot-add"
+                href="{% url 'app:schedule_create' %}?date={{ target_date|date:'Y-m-d' }}&start={{ slot.start_time|time:'H:i' }}">
+                ＋追加
+              </a>
+            {% endif %}
           </div>
+
         {% endif %}
 
         {% endwith %}

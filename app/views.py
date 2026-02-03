@@ -276,7 +276,7 @@ except:
 # ===============================
 # 月間カレンダー生成
 # ===============================
-def get_month_data(target_date):
+def get_month_data(request, target_date):
     first_day = date(target_date.year, target_date.month, 1)
     last_day_of_month = date(
         target_date.year, target_date.month,
@@ -286,12 +286,40 @@ def get_month_data(target_date):
     next_month = last_day_of_month + timedelta(days=1)
     prev_month = first_day - timedelta(days=1)
 
-    start_day_of_calendar = first_day - timedelta(days=first_day.weekday())
+    start_day_of_calendar = first_day - timedelta(
+        days=(first_day.weekday() + 1) % 7
+    )
+
     end_day_of_calendar = start_day_of_calendar + timedelta(days=41)
+
+    user_type = request.session.get("user_type")
+    user_id = request.session.get("user_id")
 
     schedules = Schedule.objects.filter(
         date__range=[start_day_of_calendar, end_day_of_calendar]
-    ).select_related("teacher").prefetch_related("students")
+    )
+
+    # ==========================
+    # ★ ここが追加・超重要
+    # ==========================
+    if user_type == "student":
+        student = Student.objects.filter(id=user_id).first()
+        if student:
+            schedules = schedules.filter(students=student)
+
+    elif user_type == "parent":
+        parent = Parent.objects.filter(id=user_id).first()
+        student = Student.objects.filter(parent=parent).first()
+        if student:
+            schedules = schedules.filter(students=student)
+
+    # teacher は全件表示（絞らない）
+
+    schedules = schedules.select_related(
+        "teacher"
+    ).prefetch_related(
+        "students"
+    )
 
     schedules_by_day = {}
     for s in schedules:
@@ -303,7 +331,7 @@ def get_month_data(target_date):
     for _ in range(42):
         calendar_days.append({
             'date': current_day,
-            'weekday': current_day.weekday(),
+            'weekday': (current_day.weekday() + 1) % 7,
             'is_current_month': current_day.month == target_date.month,
             'is_today': current_day == date.today(),
             'is_holiday': jpholiday.is_holiday(current_day),
@@ -317,12 +345,18 @@ def get_month_data(target_date):
         'month': target_date.month,
         'month_name': target_date.strftime('%Y年%m月'),
         'target_date': target_date,
-        'prev_month_url': reverse_lazy('app:calendar_month',
-                                       kwargs={'year': prev_month.year, 'month': prev_month.month}),
-        'next_month_url': reverse_lazy('app:calendar_month',
-                                       kwargs={'year': next_month.year, 'month': next_month.month}),
+        'user_type': user_type,
+        'prev_month_url': reverse_lazy(
+            'app:calendar_month',
+            kwargs={'year': prev_month.year, 'month': prev_month.month}
+        ),
+        'next_month_url': reverse_lazy(
+            'app:calendar_month',
+            kwargs={'year': next_month.year, 'month': next_month.month}
+        ),
         'calendar_days': calendar_days,
     }
+
 
 
 # ===============================
@@ -331,7 +365,10 @@ def get_month_data(target_date):
 class CalendarMonthView(View):
     def get(self, request, year=None, month=None):
         target_date = date(year, month, 1) if (year and month) else date.today()
-        context = get_month_data(target_date)
+
+        # ✅ request を渡す
+        context = get_month_data(request, target_date)
+
         return render(request, 'app/calendar_month.html', context)
 
 
@@ -372,6 +409,7 @@ class CalendarDayView(View):
         next_day = target_date + timedelta(days=1)
 
         context = {
+            'user_type': request.session.get("user_type"),
             "target_date": target_date,
             "slot_rows": slot_rows,    # ✅ テンプレで使う（重要）
             "start_offset": start_offset,
@@ -754,12 +792,17 @@ def schedule_students(request, pk):
     teacher_links = ScheduleTeacher.objects.select_related("teacher").filter(
         schedule=schedule
     ).order_by("teacher__name")
+    login_parent = None
+    if request.session.get("user_type") == "parent":
+        login_parent = Parent.objects.get(id=request.session["user_id"])
 
     context = {
         "schedule": schedule,
         "target_date": schedule.date,
         "links": links,
         "teacher_links": teacher_links,
+        "user_type": request.session.get("user_type"),
+        "login_parent": login_parent,
         "status_choices": ScheduleStudent.STATUS_CHOICES,
     }
     return render(request, "app/schedule_students.html", context)
@@ -1000,14 +1043,22 @@ def student_notice_list(request):
     user_type = request.session.get("user_type")
     user_id = request.session.get("user_id")
 
-    if user_type not in ["student", "parent"]:
+    # ✅ ログイン種別ごとに student を特定
+    if user_type == "student":
+        student = get_object_or_404(Student, id=user_id)
+
+    elif user_type == "parent":
+        parent = get_object_or_404(Parent, id=user_id)
+        student = get_object_or_404(Student, parent=parent)
+
+    else:
         return redirect("login")
 
-    parent = get_object_or_404(Parent, id=user_id)
-    student = get_object_or_404(Student, parent=parent)
-
+    # ✅ 30日以内 + 期限切れ除外 + 生徒限定
+    limit_date = timezone.now() - timedelta(days=30)
     notices = StudentNotice.objects.filter(
-        student=student
+        student=student,
+        created_at__gte=limit_date
     ).filter(
         Q(expire_at__isnull=True) | Q(expire_at__gte=timezone.now())
     ).order_by(
@@ -1015,7 +1066,6 @@ def student_notice_list(request):
         "-created_at"
     )
 
-    # ✅ 未読件数（必要なら表示用）
     unread_count = notices.filter(is_read=False).count()
 
     return render(request, "app/student_notice_list.html", {
@@ -1032,14 +1082,15 @@ def student_notice_detail(request, notice_id):
     user_type = request.session.get("user_type")
     user_id = request.session.get("user_id")
 
-    if user_type not in ["student", "parent"]:
-        return redirect("login")
-
     if user_type == "student":
         student = get_object_or_404(Student, id=user_id)
-    else:
+
+    elif user_type == "parent":
         parent = get_object_or_404(Parent, id=user_id)
         student = get_object_or_404(Student, parent=parent)
+
+    else:
+        return redirect("login")
 
     notice = get_object_or_404(
         StudentNotice,
@@ -1047,10 +1098,10 @@ def student_notice_detail(request, notice_id):
         student=student
     )
 
-    # ✅ 既読にする
+    # ✅ 既読処理
     if not notice.is_read:
         notice.is_read = True
-        notice.save()
+        notice.save(update_fields=["is_read"])
 
     return render(request, "app/student_notice_detail.html", {
         "notice": notice
@@ -1138,3 +1189,228 @@ def timeslot_delete(request, pk):
     return render(request, "app/timeslot_confirm_delete.html", {
         "timeslot": timeslot
     })
+
+
+# ===============================
+# 月次 Schedule 自動生成（共通処理）
+# ===============================
+def generate_monthly_schedules(year: int, month: int):
+    """
+    StudentAttendanceRule を元に
+    指定月の Schedule を自動生成する
+    """
+    created_count = 0
+
+    first_day = date(year, month, 1)
+    last_day = date(
+        year, month,
+        calendar.monthrange(year, month)[1]
+    )
+
+    rules = StudentAttendanceRule.objects.select_related(
+        "student",
+        "time_slot"
+    )
+
+    current_day = first_day
+    while current_day <= last_day:
+        weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        weekday = weekday_map[current_day.weekday()]
+
+        daily_rules = rules.filter(day_of_week=weekday)
+
+        for rule in daily_rules:
+            slot = rule.time_slot
+            student = rule.student
+
+            schedule, created = Schedule.objects.get_or_create(
+                date=current_day,
+                start_time=slot.start_time,
+                end_time=slot.end_time,
+                defaults={
+                    "title": "授業予定",
+                    "teacher": None,
+                    "status": "予定",
+                }
+            )
+
+            teacher = select_teacher_for_schedule(schedule)
+            if teacher:
+                ScheduleTeacher.objects.get_or_create(
+                    schedule=schedule,
+                    teacher=teacher
+                )
+
+            ScheduleStudent.objects.get_or_create(
+                schedule=schedule,
+                student=student,
+                defaults={"status": "予定"}
+            )
+
+            if created:
+                created_count += 1
+
+        current_day += timedelta(days=1)
+
+    return created_count
+
+# ===============================
+# 講師用：月次 Schedule 生成画面
+# ===============================
+class MonthlyScheduleGenerateView(View):
+
+    def get(self, request):
+        if "user_id" not in request.session:
+            return redirect("login")
+
+        if request.session.get("user_type") != "teacher":
+            messages.error(request, "権限がありません")
+            return redirect("app:setting")
+
+        today = timezone.now().date()
+
+        return render(request, "app/schedule_generate.html", {
+            "default_year": today.year,
+            "default_month": today.month,
+            "years": [2024, 2025, 2026, 2027],
+            "months": list(range(1, 13)),
+        })
+    
+    def post(self, request):
+        if request.session.get("user_type") != "teacher":
+            messages.error(request, "権限がありません")
+            return redirect("app:setting")
+
+        try:
+            year = int(request.POST.get("year"))
+            month = int(request.POST.get("month"))
+        except (TypeError, ValueError):
+            messages.error(request, "年月の指定が不正です")
+            return redirect("app:schedule_generate")
+
+        created = generate_monthly_schedules(year, month)
+
+        messages.success(
+            request,
+            f"{year}年{month}月のScheduleを {created} 件生成しました"
+        )
+
+        return redirect("app:calendar_month", year=year, month=month)
+
+
+def select_teacher_for_schedule(schedule):
+    """
+    Schedule に自動で講師を1人割り当てる
+    """
+    teachers = Teacher.objects.all().order_by("-permission_level")
+
+    for teacher in teachers:
+        # 同時間帯・同日の重複チェック
+        conflict = ScheduleTeacher.objects.filter(
+            teacher=teacher,
+            schedule__date=schedule.date,
+            schedule__start_time=schedule.start_time,
+            schedule__end_time=schedule.end_time,
+        ).exists()
+
+        if not conflict:
+            return teacher
+
+    return None
+
+
+WEEKDAY_MAP = {
+    "Mon": 0,
+    "Tue": 1,
+    "Wed": 2,
+    "Thu": 3,
+    "Fri": 4,
+    "Sat": 5,
+    "Sun": 6,
+}
+
+
+class ScheduleGenerateView(View):
+
+    def get(self, request):
+        if request.session.get("user_type") != "teacher":
+            messages.error(request, "権限がありません")
+            return redirect("app:setting")
+
+        today = date.today()
+
+        return render(request, "app/schedule_generate.html", {
+            "default_year": today.year,
+            "default_month": today.month,
+            "years": [2024, 2025, 2026, 2027],
+            "months": list(range(1, 13)),
+        })
+    
+    def post(self, request):
+        if request.session.get("user_type") != "teacher":
+            messages.error(request, "権限がありません")
+            return redirect("app:setting")
+
+        year = int(request.POST.get("year"))
+        month = int(request.POST.get("month"))
+
+        # 担当講師（とりあえず実行した講師を自動割当）
+        teacher = Teacher.objects.get(id=request.session["user_id"])
+
+        first_day = date(year, month, 1)
+        last_day = date(year, month, calendar.monthrange(year, month)[1])
+
+        rules = StudentAttendanceRule.objects.select_related(
+            "student",
+            "time_slot"
+        )
+
+        created_count = 0
+        skipped_count = 0
+
+        current = first_day
+        while current <= last_day:
+            weekday = current.weekday()
+
+            for rule in rules:
+                if WEEKDAY_MAP[rule.day_of_week] != weekday:
+                    continue
+
+                slot = rule.time_slot
+                if not slot:
+                    continue
+
+                # ✅ 既存Scheduleがあればスキップ
+                schedule, created = Schedule.objects.get_or_create(
+                    date=current,
+                    start_time=slot.start_time,
+                    end_time=slot.end_time,
+                    defaults={
+                        "title": "通常授業",
+                        "teacher": teacher,
+                        "status": "予定",
+                    }
+                )
+
+                if not created:
+                    skipped_count += 1
+                    continue
+
+                # 生徒を紐づけ
+                ScheduleStudent.objects.create(
+                    schedule=schedule,
+                    student=rule.student,
+                    status="予定"
+                )
+
+                created_count += 1
+
+            current += timedelta(days=1)
+
+        messages.success(
+            request,
+            f"{year}年{month}月のスケジュールを生成しました "
+            f"(新規: {created_count}件 / スキップ: {skipped_count}件)"
+        )
+
+        return redirect("app:calendar_month", year=year, month=month)

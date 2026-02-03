@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}月次Schedule生成{% endblock %}
+
+{% block content %}
+<style>
+.container {
+  max-width: 420px;
+  margin: 40px auto;
+  background: #fff;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.12);
+}
+h2 {
+  text-align: center;
+  font-weight: 900;
+  margin-bottom: 20px;
+}
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+label {
+  font-weight: 900;
+}
+select {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  font-weight: 900;
+}
+button {
+  padding: 14px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #5c82b8, #4266a3);
+  color: #fff;
+  font-weight: 900;
+  font-size: 1.05em;
+  cursor: pointer;
+}
+.note {
+  font-size: 0.9em;
+  color: #666;
+  text-align: center;
+}
+.back {
+  display: block;
+  text-align: center;
+  margin-top: 18px;
+  text-decoration: none;
+  font-weight: 900;
+  color: #555;
+}
+</style>
+
+<div class="container">
+  <h2>📅 月次Schedule生成</h2>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div>
+      <label>年</label>
+      <select name="year">
+        {% for y in years %}
+          <option value="{{ y }}" {% if y == default_year %}selected{% endif %}>
+            {{ y }}年
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label>月</label>
+      <select name="month">
+        {% for m in months %}
+          <option value="{{ m }}" {% if m == default_month %}selected{% endif %}>
+            {{ m }}月
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit">
+      自動生成する
+    </button>
+
+    <div class="note">
+      ※ 出席ルール（曜日＋時間帯）を元に<br>
+      Schedule を自動作成します
+    </div>
+  </form>
+
+  <a href="{% url 'app:setting' %}" class="back">
+    ← 設定に戻る
+  </a>
+</div>
+{% endblock %}
