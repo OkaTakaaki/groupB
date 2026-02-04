@@ -11,6 +11,7 @@ from .models import (
     ScheduleTeacher,
     Message,
     StudentNotice,
+    TeacherAttendanceRule
 )
 
 # =========================
@@ -104,6 +105,22 @@ class StudentAttendanceRuleAdmin(admin.ModelAdmin):
     list_filter = ("day_of_week",)
     search_fields = ("student__child_name",)
     ordering = ("student", "day_of_week")
+
+# =========================
+# 講師 出勤ルール
+# =========================
+@admin.register(TeacherAttendanceRule)
+class TeacherAttendanceRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "teacher",
+        "day_of_week",
+        "time_slot",
+        "is_primary",
+    )
+    list_filter = ("day_of_week", "is_primary")
+    search_fields = ("teacher__name",)
+    ordering = ("teacher", "day_of_week", "time_slot")
 
 
 # =========================

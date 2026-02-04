@@ -17,6 +17,7 @@ from django.contrib.auth.hashers import check_password
 from django.core.files.base import ContentFile
 from django import forms
 from django.views.decorators.http import require_http_methods
+from django.db import transaction
 
 # Models
 from .models import (
@@ -277,10 +278,13 @@ except:
 # 月間カレンダー生成
 # ===============================
 def get_month_data(request, target_date):
-    first_day = date(target_date.year, target_date.month, 1)
+    year = target_date.year
+    month = target_date.month
+
+    first_day = date(year, month, 1)
     last_day_of_month = date(
-        target_date.year, target_date.month,
-        calendar.monthrange(target_date.year, target_date.month)[1]
+        year, month,
+        calendar.monthrange(year, month)[1]
     )
 
     next_month = last_day_of_month + timedelta(days=1)
@@ -289,45 +293,66 @@ def get_month_data(request, target_date):
     start_day_of_calendar = first_day - timedelta(
         days=(first_day.weekday() + 1) % 7
     )
-
     end_day_of_calendar = start_day_of_calendar + timedelta(days=41)
 
     user_type = request.session.get("user_type")
     user_id = request.session.get("user_id")
 
+    # ==========================
+    # スケジュール取得（基本）
+    # ==========================
     schedules = Schedule.objects.filter(
         date__range=[start_day_of_calendar, end_day_of_calendar]
     )
 
     # ==========================
-    # ★ ここが追加・超重要
+    # ユーザー別の表示制御
     # ==========================
     if user_type == "student":
         student = Student.objects.filter(id=user_id).first()
         if student:
-            schedules = schedules.filter(students=student)
+            schedules = schedules.filter(
+                students=student
+            ).exclude(
+                student_links__student=student,
+                student_links__status='振替',
+                original_date__isnull=True
+            )
 
     elif user_type == "parent":
         parent = Parent.objects.filter(id=user_id).first()
         student = Student.objects.filter(parent=parent).first()
         if student:
-            schedules = schedules.filter(students=student)
+            schedules = schedules.filter(
+                students=student
+            ).exclude(
+                student_links__student=student,
+                student_links__status='振替',
+                original_date__isnull=True
+            )
 
-    # teacher は全件表示（絞らない）
+    # teacher は何もしない（全件表示）
 
-    schedules = schedules.select_related(
+    schedules = schedules.distinct().select_related(
         "teacher"
     ).prefetch_related(
         "students"
     )
 
+    # ==========================
+    # 日付ごとにまとめる
+    # ==========================
     schedules_by_day = {}
     for s in schedules:
         d = s.date.isoformat()
         schedules_by_day.setdefault(d, []).append(s)
 
+    # ==========================
+    # カレンダー42日分生成
+    # ==========================
     calendar_days = []
     current_day = start_day_of_calendar
+
     for _ in range(42):
         calendar_days.append({
             'date': current_day,
@@ -341,8 +366,8 @@ def get_month_data(request, target_date):
         current_day += timedelta(days=1)
 
     return {
-        'year': target_date.year,
-        'month': target_date.month,
+        'year': year,
+        'month': month,
         'month_name': target_date.strftime('%Y年%m月'),
         'target_date': target_date,
         'user_type': user_type,
@@ -356,7 +381,6 @@ def get_month_data(request, target_date):
         ),
         'calendar_days': calendar_days,
     }
-
 
 
 # ===============================
@@ -381,7 +405,39 @@ class CalendarDayView(View):
 
         schedules = Schedule.objects.filter(
             date=target_date
-        ).select_related("teacher").order_by("start_time")
+        )
+
+        user_type = request.session.get("user_type")
+        user_id = request.session.get("user_id")
+
+        # ==========================
+        # ★ 日表示では振替元を非表示
+        # ==========================
+        if user_type == "student":
+            student = Student.objects.filter(id=user_id).first()
+            if student:
+                schedules = schedules.filter(
+                    students=student
+                ).exclude(
+                    student_links__student=student,
+                    student_links__status='振替',
+                    original_date__isnull=True
+                )
+
+        elif user_type == "parent":
+            parent = Parent.objects.filter(id=user_id).first()
+            student = Student.objects.filter(parent=parent).first()
+            if student:
+                schedules = schedules.filter(
+                    students=student
+                ).exclude(
+                    student_links__student=student,
+                    student_links__status='振替',
+                    original_date__isnull=True
+                )
+
+        # teacher は除外しない（管理上見せた方がいい）
+        schedules = schedules.select_related("teacher").order_by("start_time").distinct()
 
         time_slots = TimeSlot.objects.all().order_by("start_time")
 
@@ -395,14 +451,14 @@ class CalendarDayView(View):
         # ✅ ここ重要：各TimeSlotに「その枠の予定があるか」を持たせる
         slot_rows = []
         for slot in time_slots:
-            found = schedules.filter(
+            found_list = schedules.filter(
                 start_time=slot.start_time,
                 end_time=slot.end_time
-            ).first()
+            )
 
             slot_rows.append({
                 "slot": slot,
-                "schedule": found,  # あればSchedule、なければNone
+                "schedules": found_list,  # ← 複数！
             })
 
         prev_day = target_date - timedelta(days=1)
@@ -787,7 +843,11 @@ def schedule_students(request, pk):
     # -----------------------------
     links = ScheduleStudent.objects.select_related("student").filter(
         schedule=schedule
+    ).exclude(
+        status='振替',
+        schedule__original_date__isnull=True
     ).order_by("student__child_name")
+
 
     teacher_links = ScheduleTeacher.objects.select_related("teacher").filter(
         schedule=schedule
@@ -806,6 +866,51 @@ def schedule_students(request, pk):
         "status_choices": ScheduleStudent.STATUS_CHOICES,
     }
     return render(request, "app/schedule_students.html", context)
+
+def send_transfer_notification(student, original_schedule, transfer_schedule):
+    """
+    振替確定時に教師へ自動通知
+    """
+
+    from_teacher_links = ScheduleTeacher.objects.filter(schedule=original_schedule)
+    to_teacher_links = ScheduleTeacher.objects.filter(schedule=transfer_schedule)
+    print("-------------------",from_teacher_links, to_teacher_links, "-------------------")
+
+    from_msg_content = (
+        "【振替通知（自動）】\n"
+        f"{student.child_name}さんの授業が振替になりました。\n\n"
+        "▼ 振替元授業\n"
+        f"日付：{original_schedule.date.strftime('%Y年%m月%d日')}\n"
+        f"時間：{original_schedule.start_time.strftime('%H:%M')}～"
+        f"{original_schedule.end_time.strftime('%H:%M')}\n"
+        f"生徒：{student.child_name}"
+    )
+
+    to_msg_content = (
+        "【振替通知（自動）】\n"
+        f"{student.child_name}さんが振替で参加します。\n\n"
+        "▼ 振替先授業\n"
+        f"日付：{transfer_schedule.date.strftime('%Y年%m月%d日')}\n"
+        f"時間：{transfer_schedule.start_time.strftime('%H:%M')}～"
+        f"{transfer_schedule.end_time.strftime('%H:%M')}\n"
+        f"生徒：{student.child_name}"
+    )
+
+    # 振替元教師へ
+    for link in from_teacher_links:
+        Message.objects.create(
+            teacher_receiver=link.teacher,
+            content=from_msg_content,
+            is_system=True,
+        )
+
+    # 振替先教師へ
+    for link in to_teacher_links:
+        Message.objects.create(
+            teacher_receiver=link.teacher,
+            content=to_msg_content,
+            is_system=True,
+        )
 
 
 @require_http_methods(["GET", "POST"])
@@ -922,8 +1027,9 @@ def schedule_teacher_add(request, pk):
 @require_http_methods(["GET", "POST"])
 def transfer_register(request, pk, student_id):
     """
-    ✅ 振替登録ページ
-    - 同じ日付×同じ時間帯に「振替Schedule」が既にあれば再利用する（重複Scheduleを作らない）
+    振替登録ページ
+    - 同じ日付×同じ時間帯に「振替Schedule」が既にあれば再利用
+    - 振替確定時に教師へ自動通知
     """
 
     original_schedule = get_object_or_404(Schedule, pk=pk)
@@ -957,38 +1063,53 @@ def transfer_register(request, pk, student_id):
                 "time_slots": time_slots,
                 "error": "日付の形式が正しくありません",
             })
+        
+        with transaction.atomic():
 
-        # ✅ ここがポイント：同じ枠の「振替Schedule」があれば再利用
-        transfer_schedule, created = Schedule.objects.get_or_create(
-            date=new_date,
-            start_time=slot.start_time,
-            end_time=slot.end_time,
-            status="振替",
-            defaults={
-                "title": f"{original_schedule.title}（振替）",
-                "original_date": original_schedule.date,
-                "teacher": original_schedule.teacher,
-            }
-        )
+            # 振替Schedule取得 or 作成
+            transfer_schedule, created = Schedule.objects.get_or_create(
+                date=new_date,
+                start_time=slot.start_time,
+                end_time=slot.end_time,
+                status="振替",
+                defaults={
+                    "title": f"{original_schedule.title}（振替）",
+                    "original_date": original_schedule.date,
+                }
+            )
 
-        # ✅ 振替Scheduleに生徒を紐付け（同じ生徒の二重登録も防ぐ）
-        ScheduleStudent.objects.get_or_create(
-            schedule=transfer_schedule,
-            student=student,
-            defaults={"status": "振替"}
-        )
+            # 講師を自動選択（基本ルール参照）
+            teacher = select_teacher_for_transfer(new_date, slot)
+            if teacher:
+                ScheduleTeacher.objects.get_or_create(
+                    schedule=transfer_schedule,
+                    teacher=teacher
+                )
 
-        # ✅ 元の授業側の生徒ステータスを振替にする（運用に合わせて変更OK）
-        link.status = "振替"
-        link.save()
+            # 振替Scheduleに生徒を紐付け
+            ScheduleStudent.objects.get_or_create(
+                schedule=transfer_schedule,
+                student=student,
+                defaults={"status": "振替"}
+            )
 
-        return redirect("app:schedule_students", pk=transfer_schedule.pk)
+            # 元の授業側の生徒ステータスを振替にする
+            link.status = "振替"
+            link.save()
+
+            # =============================
+            # ✅ 振替通知を教師に送信
+            # =============================
+            send_transfer_notification(student, original_schedule, transfer_schedule)
+
+            return redirect("app:schedule_students", pk=transfer_schedule.pk)
 
     return render(request, "app/transfer_register.html", {
         "original": original_schedule,
         "student": student,
         "time_slots": time_slots,
     })
+
 from .models import Student, StudentNotice
 
 
@@ -1414,3 +1535,28 @@ class ScheduleGenerateView(View):
         )
 
         return redirect("app:calendar_month", year=year, month=month)
+    
+
+def select_teacher_for_transfer(date, time_slot):
+    weekday_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    weekday = weekday_map[date.weekday()]
+
+    # 基本ルールに合う講師
+    candidate_teachers = Teacher.objects.filter(
+        attendance_rules__day_of_week=weekday,
+        attendance_rules__time_slot=time_slot
+    ).distinct().order_by("-permission_level")
+
+    for teacher in candidate_teachers:
+        # 同時間帯・同日の重複チェック
+        conflict = ScheduleTeacher.objects.filter(
+            teacher=teacher,
+            schedule__date=date,
+            schedule__start_time=time_slot.start_time,
+            schedule__end_time=time_slot.end_time,
+        ).exists()
+
+        if not conflict:
+            return teacher
+
+    return None

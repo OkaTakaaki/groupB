@@ -11,7 +11,7 @@ from django.core.files.base import ContentFile
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password
-from app.models import Parent, Teacher, StudentAttendanceRule
+from app.models import Parent, Teacher, StudentAttendanceRule, TimeSlot, TeacherAttendanceRule
 
 def login(request):
     if request.method == "POST":
@@ -244,28 +244,50 @@ class TeacherCreateForm(forms.ModelForm):
         ]
 
 def tcaccount(request):
+    time_slots = TimeSlot.objects.all().order_by("start_time")
+
+    week_days = [
+        ('Mon', '月'),
+        ('Tue', '火'),
+        ('Wed', '水'),
+        ('Thu', '木'),
+        ('Fri', '金'),
+        ('Sat', '土'),
+        ('Sun', '日'),
+    ]
+
     if request.method == 'POST':
         form = TeacherCreateForm(request.POST)
         if form.is_valid():
             teacher = form.save(commit=False)
-
-            # ✅ 明示的に user_type をセット
             teacher.user_type = "teacher"
-
-            # ✅ パスワードをハッシュ化
             teacher.password_hash = make_password(
                 form.cleaned_data['password']
             )
-
             teacher.save()
+
+            # ★ 基本勤務ルール保存
+            selected_days = request.POST.getlist("attendance_days")
+            for day in selected_days:
+                time_slot_id = request.POST.get(f"time_slot_{day}")
+                if not time_slot_id:
+                    continue
+                TeacherAttendanceRule.objects.create(
+                    teacher=teacher,
+                    day_of_week=day,
+                    time_slot_id=time_slot_id,
+                )
+
             messages.success(request, '講師アカウントを作成しました。')
             return redirect('tcaccount')
-        else:
-            print(form.errors)
     else:
         form = TeacherCreateForm()
 
-    return render(request, 'accounts/tcaccount.html', {'form': form})
+    return render(request, 'accounts/tcaccount.html', {
+        'form': form,
+        'time_slots': time_slots,
+        'week_days': week_days,  # ← ★ これ
+    })
 
 
 #student-select
@@ -421,22 +443,56 @@ def teacher_select(request):
 
 # teacher-edit-account
 def teaccount(request, teacher_id):
-    if 'user_id' not in request.session:  # ← セッションにユーザー情報がなければ
-        return redirect('login')          # ログイン画面へ飛ばす
+    if 'user_id' not in request.session:
+        return redirect('login')
+
     teacher = get_object_or_404(Teacher, id=teacher_id)
+    time_slots = TimeSlot.objects.all().order_by("start_time")
+
+    # 既存ルール取得
+    rules = teacher.attendance_rules.all()
+    selected_days = [r.day_of_week for r in rules]
 
     if request.method == 'POST':
         form = TeacherForm(request.POST, instance=teacher)
+
         if form.is_valid():
             form.save()
-            messages.success(request, '講師情報を更新しました。')
+
+            # ===== 勤務ルールを一旦削除 =====
+            TeacherAttendanceRule.objects.filter(teacher=teacher).delete()
+
+            # ===== 再登録 =====
+            selected_days = request.POST.getlist("attendance_days")
+
+            for day in selected_days:
+                time_slot_id = request.POST.get(f"{day}_time_slot")
+                if not time_slot_id:
+                    continue
+
+                TeacherAttendanceRule.objects.create(
+                    teacher=teacher,
+                    day_of_week=day,
+                    time_slot_id=time_slot_id,
+                    is_primary=True
+                )
+
+            messages.success(request, "講師情報を更新しました。")
             return redirect('teacher_select')
+
         else:
-            messages.error(request, '入力内容に誤りがあります。')
+            messages.error(request, "入力内容に誤りがあります。")
+
     else:
         form = TeacherForm(instance=teacher)
 
-    return render(request, 'accounts/teaccount.html', {'form': form, 'teacher': teacher})
+    return render(request, 'accounts/teaccount.html', {
+        'form': form,
+        'teacher': teacher,
+        'time_slots': time_slots,
+        'selected_days': selected_days,
+    })
+
 
 class TimeSlotForm(forms.ModelForm):
     class Meta:

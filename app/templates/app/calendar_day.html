@@ -2,59 +2,9 @@
 {% load app_extras %}
 
 {% block title %}{{ target_date|date:"Y年n月j日" }} の予定{% endblock %}
-
 {% block content %}
 
 <style>
-/* ===== ヘッダー（ナビ＋追加） ===== */
-.day-title{
-  text-align:center;
-  margin: 12px 0 12px;
-  font-size: 28px;
-  font-weight: 900;
-}
-
-.day-header{
-  width: min(900px, 96vw);
-  margin: 0 auto 18px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-}
-
-.day-nav{
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.day-nav button{
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.day-header-side{
-  display:flex;
-  justify-content:flex-end;
-}
-
-.btn-add{
-  padding: 10px 14px;
-  border: none;
-  border-radius: 10px;
-  background: #5C82B8;
-  color: #fff;
-  font-weight: 900;
-  cursor: pointer;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.14);
-}
-.btn-add:hover{ filter: brightness(.96); }
-
-/* ===== 日表示レーン ===== */
 .day-wrapper{
   position: relative;
   width: min(900px, 96vw);
@@ -63,13 +13,9 @@
   border-radius: 14px;
   background: #f9fbff;
   box-shadow: 0 8px 18px rgba(0,0,0,0.08);
-  overflow: visible;
-
-  /* ✅ 空白を消す（最初〜最後の時間） */
   height: {{ end_offset|minus:start_offset }}px;
 }
 
-/* 時間帯レーン背景（右側の枠） */
 .time-slot{
   position: absolute;
   left: 130px;
@@ -79,236 +25,110 @@
   border: 1px solid #dde5ff;
 }
 
-/* 時間ラベル（左の白い箱） */
 .time-label{
   position: absolute;
   left: 10px;
   width: 105px;
   text-align: right;
-  padding: 10px 10px;
+  padding: 10px;
   font-size: 13px;
   font-weight: 900;
-  color: #223;
-  background: #ffffff;
+  background: #fff;
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
-/* クリック可能エリア（枠クリックで追加） */
-.hour-click{
-  position: absolute;
-  left: 130px;
-  right: 16px;
-  cursor: pointer;
-  z-index: 5;
-  border-radius: 12px;
-}
-.hour-click:hover{
-  background: rgba(80,120,255,0.08);
-}
- 
-/* 予定カード */
 .schedule-block{
   position: absolute;
-  left: 142px;
-  right: 28px;
   padding: 10px 12px;
   border-radius: 14px;
   color: #fff;
   font-size: 13px;
-  line-height: 1.45;
   box-shadow: 0 6px 14px rgba(0,0,0,0.16);
-  z-index: 10;
-  overflow: hidden;
-  text-decoration: none;
+  cursor: pointer;
 }
- 
-/* ステータス色 */
+
 .status-予定 { background: #5C82B8; }
 .status-出席 { background: #43a047; }
 .status-欠席 { background: #e53935; }
 .status-振替 { background: #fb8c00; }
-.status-中止 { background: #757575; }
 
-/* 空白レーン内（追加ボタンなど） */
-.slot-text{
-  position: absolute;
-  left: 142px;
-  right: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 6;
-  pointer-events: none;
+.more-block{
+  background: #6b7280;
+  text-align: center;
   font-weight: 900;
-  color: #445;
-  gap: 10px;
-}
-
-.slot-empty{
-  color: #889;
-  font-weight: 700;
-}
-
-.slot-add, .slot-link{
-  pointer-events: auto;
-  text-decoration: none;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-weight: 900;
-}
-
-/* 追加 */
-.slot-add{
-  background: rgba(92,130,184,0.14);
-  color: #3b5ea0;
-  border: 1px solid rgba(92,130,184,0.30);
-}
-.slot-add:hover{ filter: brightness(0.95); }
-
-/* 授業予定（生徒追加） */
-.slot-link{
-  background: rgba(67,160,71,0.18);
-  color: #2e7d32;
-  border: 1px solid rgba(67,160,71,0.35);
-}
-.slot-link:hover{ filter: brightness(0.95); }
-
-/* ✅ 予定カード内のボタンエリア */
-.schedule-actions{
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  display: flex;
-  gap: 8px;
-  z-index: 20;
-}
-
-/* ✅ 小さいボタン共通 */
-.btn-mini{
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-weight: 900;
-  font-size: 12px;
-  text-decoration: none;
-  line-height: 1;
-}
-
-/* ✅ 詳細 */
-.btn-mini-detail{
-  background: rgba(255,255,255,0.9);
-  color: #223;
-  border: 1px solid rgba(255,255,255,0.7);
-}
-
-/* ✅ 削除 */
-.btn-mini-del{
-  background: #d64545;
-  color: #fff;
-  border: 1px solid rgba(0,0,0,0.08);
-}
-.btn-mini-del:hover{ filter: brightness(.95); }
-
-/* ✅ カード自体をクリックできるように */
-.schedule-block{
-  cursor: pointer;
 }
 </style>
 
-<h2 class="day-title">{{ target_date|date:"Y年n月j日 (D)" }}</h2>
-
-<div class="day-header">
-  <div></div>
-
-  <div class="day-nav">
-    <button onclick="location.href='{{ prev_day_url }}'">前の日</button>
-    <button onclick="location.href='{{ month_url }}'">月へ戻る</button>
-    <button onclick="location.href='{{ next_day_url }}'">次の日</button>
-  </div>
-
-  <div class="day-header-side">
-    {% if user_type == "teacher" %}
-      <button class="btn-add"
-        onclick="location.href='{% url 'app:schedule_create' %}?date={{ target_date|date:'Y-m-d' }}'">
-        ＋予定の新規追加
-      </button>
-    {% endif %}
-  </div>
-
-</div>
+<h2 style="text-align:center;font-weight:900;">
+  {{ target_date|date:"Y年n月j日 (D)" }}
+</h2>
 
 <div class="day-wrapper">
 
-  {% for row in slot_rows %}
-    {% with slot=row.slot found=row.schedule %}
-      {% with start_min=slot.start_time|time_to_minutes end_min=slot.end_time|time_to_minutes %}
-        {% with top_pos=start_min|minus:start_offset height_pos=end_min|minus:start_min %}
+{% for row in slot_rows %}
+{% with slot=row.slot schedules=row.schedules %}
+{% with start_min=slot.start_time|time_to_minutes end_min=slot.end_time|time_to_minutes %}
+{% with top_pos=start_min|minus:start_offset height_pos=end_min|minus:start_min %}
 
-        <!-- 背景枠 -->
-        <div class="time-slot" style="top:{{ top_pos }}px; height:{{ height_pos }}px;"></div>
+  <div class="time-slot"
+       style="top:{{ top_pos }}px;height:{{ height_pos }}px;"></div>
 
-        <!-- 左のラベル -->
-        <div class="time-label" style="top:{{ top_pos }}px;">
-          {{ slot.name }}<br>
-          {{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}
-        </div>
+  <div class="time-label" style="top:{{ top_pos }}px;">
+    {{ slot.name }}<br>
+    {{ slot.start_time|time:"H:i" }}-{{ slot.end_time|time:"H:i" }}
+  </div>
 
-        <!-- クリックで追加 -->
-        {% if user_type == "teacher" %}
-          <div class="hour-click"
-              onclick="createSchedule('{{ slot.start_time|time:"H:i" }}')"
-              style="top:{{ top_pos }}px; height:{{ height_pos }}px;">
-          </div>
-        {% endif %}
+  {% if schedules %}
+    {% with total=schedules|length gap=8 max_show=3 %}
+    {% for found in schedules|slice:":3" %}
+      {% with index=forloop.counter0 %}
+      <div class="schedule-block status-{{ found.status }}"
+           style="
+             top:{{ top_pos }}px;
+             height:{{ height_pos }}px;
 
-        <!-- ✅ 予定あり：カード / なし：追加ボタン（※ schedule.pk を使わない） -->
-        {% if found %}
-  <div class="schedule-block status-{{ found.status }}"
-       style="top:{{ top_pos }}px; height:{{ height_pos }}px;"
-       onclick="location.href='{% url 'app:schedule_students' pk=found.pk %}'">
+             width: calc(
+               ((100% - 170px) - ({{ max_show }} - 1) * {{ gap }}px)
+               / {{ max_show }}
+             );
 
-    <!-- ✅ 右上のアクション（詳細 / 削除） -->
-     {% if user_type == "teacher" %}
-      <div class="schedule-actions" onclick="event.stopPropagation();">
-        <a class="btn-mini btn-mini-del"
-          href="{% url 'app:schedule_delete' pk=found.pk %}">
-          削除
-        </a>
+             left: calc(
+               142px +
+               (
+                 (
+                   ((100% - 170px) - ({{ max_show }} - 1) * {{ gap }}px)
+                   / {{ max_show }}
+                   + {{ gap }}px
+                 ) * {{ index }}
+               )
+             );
+           "
+           onclick="location.href='{% url 'app:schedule_students' pk=found.pk %}'">
+
+        <div style="font-weight:900;">{{ found.title }}</div>
+        <div style="opacity:.85;">生徒 / 講師</div>
+      </div>
+      {% endwith %}
+    {% endfor %}
+
+    {% if total > max_show %}
+      <div class="schedule-block more-block"
+           style="
+             top:{{ top_pos }}px;
+             height:{{ height_pos }}px;
+             left: calc(142px + (100% - 170px) * 0.75);
+             width: 80px;
+           ">
+        ＋{{ total|add:"-3" }}件
       </div>
     {% endif %}
-
-    <div style="font-weight:900; font-size:14px;">{{ found.title }}</div>
-    <div style="opacity:.9; margin-top:4px;">
-      生徒追加 / 講師変更
-    </div>
-  </div>
-{% else %}
-
-          <div class="slot-text" style="top:{{ top_pos }}px; height:{{ height_pos }}px;">
-            <span class="slot-empty">予定なし</span>
-
-            {% if user_type == "teacher" %}
-              <a class="slot-add"
-                href="{% url 'app:schedule_create' %}?date={{ target_date|date:'Y-m-d' }}&start={{ slot.start_time|time:'H:i' }}">
-                ＋追加
-              </a>
-            {% endif %}
-          </div>
-
-        {% endif %}
-
-        {% endwith %}
-      {% endwith %}
     {% endwith %}
-  {% endfor %}
+  {% endif %}
+
+{% endwith %}
+{% endwith %}
+{% endwith %}
+{% endfor %}
 
 </div>
-
-<script>
-function createSchedule(startTime) {
-  location.href = "{% url 'app:schedule_create' %}?date={{ target_date|date:'Y-m-d' }}&start=" + startTime;
-}
-</script>
- 
 {% endblock %}

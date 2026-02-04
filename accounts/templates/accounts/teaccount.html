@@ -3,6 +3,7 @@
 
 {% block content %}
 <style>
+/* ===== 既存デザインそのまま ===== */
 .form-container {
     max-width: 500px;
     margin: 40px auto;
@@ -39,20 +40,31 @@ button {
     padding: 10px;
     font-size: 1em;
     cursor: pointer;
-    transition: 0.2s;
 }
 button:hover {
     background-color: #3e66b3;
 }
-.message {
-    text-align: center;
-    color: green;
-    font-weight: bold;
+
+/* ===== 追加UI（曜日＋時間帯） ===== */
+.rule-box {
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
 }
-.errorlist {
-    color: red;
-    list-style: none;
-    padding-left: 0;
+.rule-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #5a82d1;
+}
+.rule-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.rule-row label {
+    width: 70px;
+    font-weight: bold;
 }
 </style>
 
@@ -65,22 +77,44 @@ button:hover {
         {% endfor %}
     {% endif %}
 
-    {% if form.errors %}
-        <ul class="errorlist">
-            {% for field in form %}
-                {% for error in field.errors %}
-                    <li>{{ field.label }}: {{ error }}</li>
-                {% endfor %}
-            {% endfor %}
-            {% for error in form.non_field_errors %}
-                <li>{{ error }}</li>
-            {% endfor %}
-        </ul>
-    {% endif %}
-
     <form method="post">
         {% csrf_token %}
+
+        <!-- 基本情報 -->
         {{ form.as_p }}
+
+        <!-- 勤務曜日・時間帯 -->
+        <div class="rule-box">
+            <div class="rule-title">勤務曜日と時間帯</div>
+
+            {% for value,label in teacher.attendance_rules.model.DAYS_OF_WEEK %}
+            <div class="rule-row">
+                <input
+                    type="checkbox"
+                    name="attendance_days"
+                    value="{{ value }}"
+                    {% if value in selected_days %}checked{% endif %}
+                >
+                <label>{{ label }}</label>
+
+                <select name="{{ value }}_time_slot">
+                    <option value="">時間帯を選択</option>
+                    {% for slot in time_slots %}
+                        <option value="{{ slot.id }}"
+                            {% for r in teacher.attendance_rules.all %}
+                                {% if r.day_of_week == value and r.time_slot.id == slot.id %}
+                                    selected
+                                {% endif %}
+                            {% endfor %}
+                        >
+                            {{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+        </div>
+
         <button type="submit">更新する</button>
     </form>
 

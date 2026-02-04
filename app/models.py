@@ -217,6 +217,43 @@ class Teacher(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.permission_level})"
+    
+# =========================
+# ★ 講師の基本担当ルール（曜日＋時間帯）
+# =========================
+class TeacherAttendanceRule(models.Model):
+    DAYS_OF_WEEK = StudentAttendanceRule.DAYS_OF_WEEK
+
+    teacher = models.ForeignKey(
+        Teacher,
+        on_delete=models.CASCADE,
+        related_name="attendance_rules",
+        verbose_name="講師"
+    )
+
+    time_slot = models.ForeignKey(
+        TimeSlot,
+        on_delete=models.PROTECT,
+        verbose_name="時間帯"
+    )
+
+    day_of_week = models.CharField(
+        max_length=3,
+        choices=DAYS_OF_WEEK,
+        verbose_name="担当曜日"
+    )
+
+    is_primary = models.BooleanField(
+        default=True,
+        verbose_name="主担当"
+    )
+
+    class Meta:
+        unique_together = ("teacher", "day_of_week", "time_slot")
+
+    def __str__(self):
+        return f"{self.teacher.name} {self.get_day_of_week_display()} {self.time_slot}"
+
 
 # =========================
 # スケジュール × 生徒（中間モデル）
@@ -382,6 +419,8 @@ class Message(models.Model):
 
     # ⭐ 追加
     is_read = models.BooleanField("既読", default=False)
+
+    is_system = models.BooleanField("システムメッセージ", default=False)
 
     def __str__(self):
         sender = self.parent_sender or self.teacher_sender
