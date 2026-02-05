@@ -133,18 +133,19 @@ def setting(request):
 def mail_list(request, user_type=None, user_id=None):
     if 'user_id' not in request.session:
         return redirect('login')
- 
+
     current_type = request.session['user_type']
     current_id = request.session['user_id']
- 
+
+    # ===== ログインユーザー取得 =====
     if current_type in ['student', 'parent']:
         current_user = get_object_or_404(Parent, id=current_id)
     else:
         current_user = get_object_or_404(Teacher, id=current_id)
- 
+
     selected_day = request.GET.get("day")
     q = request.GET.get("q")
- 
+
     weekdays = [
         ("Mon", "月曜日"),
         ("Tue", "火曜日"),
@@ -154,97 +155,116 @@ def mail_list(request, user_type=None, user_id=None):
         ("Sat", "土曜日"),
         ("Sun", "日曜日"),
     ]
- 
+
     selected_user = None
     messages = []
- 
-    # ===== チャット相手 =====
+
+    # =========================================================
+    # チャット相手が選択されている場合
+    # =========================================================
     if user_id:
         if current_type in ['student', 'parent']:
             selected_user = get_object_or_404(Teacher, id=user_id)
         else:
             selected_user = get_object_or_404(Parent, id=user_id)
- 
+
         if current_type in ['student', 'parent']:
             messages = Message.objects.filter(
                 Q(parent_sender=current_user, teacher_receiver=selected_user) |
                 Q(teacher_sender=selected_user, parent_receiver=current_user)
             ).order_by('timestamp')
-        else:
-            messages = Message.objects.filter(
-                Q(teacher_sender=current_user, parent_receiver=selected_user) |
-                Q(parent_sender=selected_user, teacher_receiver=current_user)
-            ).order_by('timestamp')
 
-        # ✅ 既読処理（チャットを開いたら相手からの未読を既読に）
-        if current_type in ['student', 'parent']:
+            # 既読処理（先生→親）
             Message.objects.filter(
                 teacher_sender=selected_user,
                 parent_receiver=current_user,
                 is_read=False
             ).update(is_read=True)
+
         else:
+            messages = Message.objects.filter(
+                Q(teacher_sender=current_user, parent_receiver=selected_user) |
+                Q(parent_sender=selected_user, teacher_receiver=current_user) |
+                Q(is_system=True, teacher_receiver=current_user)   # ★ system 通知
+            ).order_by('timestamp')
+
+            # 既読処理（親→先生 + system）
             Message.objects.filter(
-                parent_sender=selected_user,
-                teacher_receiver=current_user,
+                Q(parent_sender=selected_user, teacher_receiver=current_user) |
+                Q(is_system=True, teacher_receiver=current_user),
                 is_read=False
             ).update(is_read=True)
- 
-    # ===== メッセージ送信 =====
+
+    # =========================================================
+    # システム通知だけ表示（先生・相手未選択）
+    # =========================================================
+    if not user_id and current_type not in ['student', 'parent']:
+        messages = Message.objects.filter(
+            is_system=True,
+            teacher_receiver=current_user
+        ).order_by('-timestamp')
+
+        Message.objects.filter(
+            is_system=True,
+            teacher_receiver=current_user,
+            is_read=False
+        ).update(is_read=True)
+
+    # =========================================================
+    # メッセージ送信
+    # =========================================================
     if request.method == 'POST' and selected_user:
         form = MessageForm(request.POST)
         if form.is_valid():
             msg = form.save(commit=False)
- 
+
             if current_type in ['student', 'parent']:
                 msg.parent_sender = current_user
                 msg.teacher_receiver = selected_user
             else:
                 msg.teacher_sender = current_user
                 msg.parent_receiver = selected_user
- 
+
             msg.save()
             return redirect('app:mail_detail', user_id=user_id)
     else:
         form = MessageForm()
- 
-    # ===== 左サイドのユーザー一覧 =====
+
+    # =========================================================
+    # 左サイド ユーザー一覧
+    # =========================================================
     if current_type in ['student', 'parent']:
         users = Teacher.objects.all()
- 
         if q:
             users = users.filter(name__icontains=q)
- 
     else:
         users = Student.objects.all()
- 
+
         if selected_day:
             users = users.filter(
                 attendance_rules__day_of_week=selected_day
             ).distinct()
- 
-        if q:
-            users = users.filter(
-                child_name__icontains=q
-            )
 
-    # ===== 各ユーザーごとの未読件数 =====
+        if q:
+            users = users.filter(child_name__icontains=q)
+
+    # =========================================================
+    # 未読件数
+    # =========================================================
     for user in users:
         if current_type in ['student', 'parent']:
-            # 親 → 先生からの未読
             user.unread_count = Message.objects.filter(
                 teacher_sender=user,
                 parent_receiver=current_user,
                 is_read=False
             ).count()
         else:
-            # 先生 → 親からの未読
             user.unread_count = Message.objects.filter(
-                parent_sender=user.parent,
-                teacher_receiver=current_user,
+                Q(parent_sender=user.parent, teacher_receiver=current_user) |
+                Q(is_system=True, teacher_receiver=current_user),
                 is_read=False
             ).count()
- 
+
     context = {
         'users': users,
         'selected_day': selected_day,
@@ -256,8 +276,8 @@ def mail_list(request, user_type=None, user_id=None):
         'is_student': current_type == 'student',
         'user_type': current_type,
     }
- 
-    return render(request, 'mail_list.html', context) 
+
+    return render(request, 'mail_list.html', context)
 
 
 def smenu_view(request):
@@ -868,49 +888,37 @@ def schedule_students(request, pk):
     return render(request, "app/schedule_students.html", context)
 
 def send_transfer_notification(student, original_schedule, transfer_schedule):
-    """
-    振替確定時に教師へ自動通知
-    """
+    system_teacher = Teacher.objects.get(login_id="system@school.local")
 
     from_teacher_links = ScheduleTeacher.objects.filter(schedule=original_schedule)
     to_teacher_links = ScheduleTeacher.objects.filter(schedule=transfer_schedule)
-    print("-------------------",from_teacher_links, to_teacher_links, "-------------------")
 
-    from_msg_content = (
+    parent = student.parent  # ★ 追加（この親だけ）
+
+    content = (
         "【振替通知（自動）】\n"
         f"{student.child_name}さんの授業が振替になりました。\n\n"
         "▼ 振替元授業\n"
         f"日付：{original_schedule.date.strftime('%Y年%m月%d日')}\n"
         f"時間：{original_schedule.start_time.strftime('%H:%M')}～"
-        f"{original_schedule.end_time.strftime('%H:%M')}\n"
-        f"生徒：{student.child_name}"
-    )
-
-    to_msg_content = (
-        "【振替通知（自動）】\n"
-        f"{student.child_name}さんが振替で参加します。\n\n"
+        f"{original_schedule.end_time.strftime('%H:%M')}\n\n"
         "▼ 振替先授業\n"
         f"日付：{transfer_schedule.date.strftime('%Y年%m月%d日')}\n"
         f"時間：{transfer_schedule.start_time.strftime('%H:%M')}～"
         f"{transfer_schedule.end_time.strftime('%H:%M')}\n"
-        f"生徒：{student.child_name}"
     )
-
-    # 振替元教師へ
-    for link in from_teacher_links:
-        Message.objects.create(
-            teacher_receiver=link.teacher,
-            content=from_msg_content,
-            is_system=True,
-        )
-
-    # 振替先教師へ
+    # ============================
+    # 振替先の講師へ
+    # ============================
     for link in to_teacher_links:
         Message.objects.create(
+            teacher_sender=system_teacher,
+            parent_receiver=parent,
             teacher_receiver=link.teacher,
-            content=to_msg_content,
+            content=content,
             is_system=True,
         )
+
 
 
 @require_http_methods(["GET", "POST"])

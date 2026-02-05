@@ -6,7 +6,6 @@
 
 {% block content %}
 <style>
-/* 全体コンテナ */
 .mail-container {
     display: flex;
     height: calc(100vh - 260px);
@@ -17,7 +16,6 @@
     padding-bottom: 90px;
 }
 
-/* サイドバー */
 .sidebar {
     width: 30%;
     background-color: #AFC4D5;
@@ -32,7 +30,6 @@
     border-radius: 6px;
     border: none;
     margin-bottom: 10px;
-    font-size: 14px;
 }
 
 .user-item {
@@ -42,9 +39,7 @@
     padding: 8px;
     border-radius: 6px;
     margin-bottom: 6px;
-    transition: background-color 0.2s;
     text-decoration: none;
-    position: relative;   /* ← バッジ用 */
 }
 
 .user-item:hover {
@@ -57,34 +52,24 @@
 }
 
 .user-name {
-    font-size: 15px;
     font-weight: bold;
     color: #333;
 }
 
 .unread-badge {
-    margin-left: auto;     /* ← 右端へ押す */
+    margin-left: auto;
     background: red;
     color: white;
     font-size: 12px;
     padding: 2px 7px;
     border-radius: 12px;
-    font-weight: bold;
-    display: flex;
-    align-items: center;   /* ← 縦中央 */
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
 }
 
-
-/* チャット部分 */
 .chat-area {
     flex: 1;
     display: flex;
     flex-direction: column;
     background-color: white;
-    position: relative;
 }
 
 .chat-header {
@@ -93,10 +78,8 @@
     padding: 12px;
     text-align: center;
     font-weight: bold;
-    font-size: 16px;
 }
 
-/* メッセージ一覧 */
 .chat-messages {
     flex: 1;
     padding: 15px;
@@ -112,8 +95,6 @@
     padding: 10px 12px;
     border-radius: 10px;
     max-width: 70%;
-    word-break: break-word;
-    position: relative;
 }
 
 /* 自分 */
@@ -128,7 +109,13 @@
     align-self: flex-start;
 }
 
-/* 🟡 未読ラベル */
+/* system */
+.system {
+    background-color: #FFF3CD;
+    align-self: center;
+    font-size: 13px;
+}
+
 .unread-label {
     font-size: 11px;
     color: white;
@@ -138,43 +125,21 @@
     margin-left: 6px;
 }
 
-/* 入力フォーム */
 .message-form {
     position: absolute;
     bottom: 90px;
-    left: 0;
     width: 100%;
     display: flex;
     padding: 10px;
     background-color: #EEE;
-    border-top: 1px solid #ccc;
-}
-
-.message-form input[type="text"] {
-    flex: 1;
-    padding: 8px;
-    border-radius: 5px;
-    border: 1px solid #CCC;
-    font-size: 14px;
 }
 
 .message-form button {
-    padding: 8px 16px;
     margin-left: 10px;
-    background-color: #5C82B8;
-    border: none;
-    color: white;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.message-form button:hover {
-    background-color: #496a94;
 }
 
 .no-chat {
     text-align: center;
-    color: #555;
     margin: auto;
 }
 </style>
@@ -183,76 +148,70 @@
 
 <!-- 左：ユーザー一覧 -->
 <div class="sidebar">
-
-    <!-- 🔍 検索フォーム -->
-    <form method="GET" action="" style="display:flex; gap:5px; margin-bottom:10px;">
-        <input type="text" name="q" placeholder="🔍 ユーザーを検索..." class="search-box" value="{{ request.GET.q }}">
+    <form method="GET" style="display:flex; gap:5px;">
+        <input type="text" name="q" placeholder="🔍 検索" class="search-box" value="{{ request.GET.q }}">
         <button type="submit">検索</button>
-        <button type="submit" name="q" value="">全件</button>
     </form>
 
     {% for user in users %}
-        {% if user.child_name %}
-            <a href="{% url 'app:mail_detail' user.parent.id %}" class="user-item">
-        {% else %}
-            <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
-        {% endif %}
+        <a href="{% url 'app:mail_detail' user.id %}" class="user-item">
             <div class="user-icon">👤</div>
+
             <span class="user-name">
                 {% if user.child_name %}
-                    {{ user.child_name }}
+                    {{ user.child_name }} の保護者
                 {% else %}
-                    {{ user.name }}
+                    {{ user.name }} 先生
                 {% endif %}
             </span>
 
-            <!-- 🔴 未読件数 -->
             {% if user.unread_count > 0 %}
-                <span class="unread-badge">
-                    {{ user.unread_count }}
-                </span>
+                <span class="unread-badge">{{ user.unread_count }}</span>
             {% endif %}
         </a>
     {% endfor %}
 </div>
 
-<!-- 右：チャット画面 -->
+<!-- 右：チャット -->
 <div class="chat-area">
 {% if selected_user %}
     <div class="chat-header">
         {% if selected_user.child_name %}
-            {{ selected_user.child_name }} さん
+            {{ selected_user.child_name }} の保護者
         {% else %}
-            {{ selected_user.name }} さん
+            {{ selected_user.name }} 先生
         {% endif %}
     </div>
 
     <div class="chat-messages">
         {% for message in messages %}
             <div class="message
-                {% if message.parent_sender == current_user or message.teacher_sender == current_user %}
+                {% if message.is_system %}
+                    system
+                {% elif message.parent_sender == current_user or message.teacher_sender == current_user %}
                     sent
                 {% else %}
                     received
                 {% endif %}
             ">
-                {{ message.content }}
+                {{ message.content|linebreaksbr }}
 
-                <!-- 🟡 未読表示 -->
-                {% if not message.is_read and message.parent_sender != current_user and message.teacher_sender != current_user %}
+                {% if not message.is_read and not message.is_system %}
                     <span class="unread-label">未読</span>
                 {% endif %}
             </div>
         {% empty %}
-            <p class="no-chat">メッセージはまだありません。</p>
+            <p class="no-chat">メッセージはありません</p>
         {% endfor %}
     </div>
 
+    {% if not selected_user.is_system %}
     <form method="POST" class="message-form">
         {% csrf_token %}
         {{ form.content }}
         <button type="submit">送信</button>
     </form>
+    {% endif %}
 
 {% else %}
     <div class="no-chat">
